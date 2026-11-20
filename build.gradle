@@ -1,0 +1,25 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'app.felt.tv'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'app.felt.tv'
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+    signingConfigs {
+        felt {
+            storeFile rootProject.file('felt.keystore')
+            storePassword 'feltfelt'
+            keyAlias 'felt'
+            keyPassword 'feltfelt'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.felt }
+        debug { signingConfig signingConfigs.felt }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
