@@ -10,6 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Put files in their folders
+        run: |
+          set -e
+          M=app/src/main
+          mkdir -p $M/java/app/felt/tv $M/res/drawable-xhdpi $M/res/mipmap-xxxhdpi
+          [ -f MainActivity.java ] && mv MainActivity.java $M/java/app/felt/tv/
+          [ -f AndroidManifest.xml ] && mv AndroidManifest.xml $M/
+          [ -f banner.png ] && mv banner.png $M/res/drawable-xhdpi/
+          [ -f ic_launcher.png ] && mv ic_launcher.png $M/res/mipmap-xxxhdpi/
+          if [ ! -f app/build.gradle ]; then mv build.gradle app/build.gradle; fi
+          echo "plugins { id 'com.android.application' version '8.5.2' apply false }" > build.gradle
+          find . -path ./.git -prune -o -type f -print
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
       - uses: android-actions/setup-android@v3
