@@ -1,0 +1,21 @@
+{
+  "id": "splendor",
+  "name": "Splendor",
+  "version": "1.0.0",
+  "subtitle": "Collect gems, buy mines and shops, and win over the nobles.",
+  "description": "Take gems, then spend them on development cards. Every card you own is a permanent discount on future cards, so your engine grows each turn. Nobles visit whoever collects the right mix of cards. First to 15 prestige points triggers the final round. 2\u20134 players; anyone else can watch.",
+  "tags": [
+    "Strategy",
+    "Engine building",
+    "Classic"
+  ],
+  "players": {
+    "min": 2,
+    "max": 4,
+    "recommended": 3
+  },
+  "averageDurationMinutes": 30,
+  "difficultyToLearn": "Medium",
+  "cover": "cover.webp",
+  "suggestions": []
+}

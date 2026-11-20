@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#1f4d3a"/>
+  <g font-family="Arial, sans-serif" font-weight="700" font-size="17" text-anchor="middle">
+    <rect x="40" y="52" width="100" height="56" rx="8" fill="#d6453d"/><text x="90" y="86" fill="#fff">ROCKET</text>
+    <rect x="150" y="52" width="100" height="56" rx="8" fill="#f7f0dc"/><text x="200" y="86" fill="#22201b">CASTLE</text>
+    <rect x="260" y="52" width="100" height="56" rx="8" fill="#2f6fb5"/><text x="310" y="86" fill="#fff">OCEAN</text>
+    <rect x="40" y="122" width="100" height="56" rx="8" fill="#f7f0dc"/><text x="90" y="156" fill="#22201b">PIANO</text>
+    <rect x="150" y="122" width="100" height="56" rx="8" fill="#2a2724"/><text x="200" y="156" fill="#f7f0dc">GHOST</text>
+    <rect x="260" y="122" width="100" height="56" rx="8" fill="#f7f0dc"/><text x="310" y="156" fill="#22201b">TIGER</text>
+    <rect x="40" y="192" width="100" height="56" rx="8" fill="#2f6fb5"/><text x="90" y="226" fill="#fff">BRIDGE</text>
+    <rect x="150" y="192" width="100" height="56" rx="8" fill="#cbbf9f"/><text x="200" y="226" fill="#5f5643">CLOUD</text>
+    <rect x="260" y="192" width="100" height="56" rx="8" fill="#d6453d"/><text x="310" y="226" fill="#fff">MOON</text>
+  </g>
+</svg>

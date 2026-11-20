@@ -1,0 +1,33 @@
+{
+  "id": "scattergories",
+  "name": "Scattergories",
+  "version": "1.0.0",
+  "subtitle": "One letter, twelve categories, two minutes. Be original.",
+  "description": "A letter is rolled and everyone races to fill 12 categories with answers starting with it. Then the group goes through the answers together: matching answers cancel out, and anyone can challenge a stretch. Score a point for every answer that survives. Three rounds.",
+  "tags": [
+    "Party",
+    "Word",
+    "Classic"
+  ],
+  "players": {
+    "min": 2,
+    "max": 12,
+    "recommended": 5
+  },
+  "averageDurationMinutes": 20,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": [
+    {
+      "kind": "category",
+      "label": "A category",
+      "fields": [
+        {
+          "key": "text",
+          "label": "Category",
+          "placeholder": "Things you find in a junk drawer"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#1f4d3a"/>
+  <rect x="100" y="30" width="200" height="240" rx="18" fill="#0f2f24"/>
+  <g font-family="Arial, sans-serif" font-weight="800" font-size="30" text-anchor="middle" fill="#22201b">
+    <g fill="#f7f0dc">
+      <rect x="114" y="50" width="38" height="38" rx="6"/><rect x="157" y="50" width="38" height="38" rx="6"/><rect x="200" y="50" width="38" height="38" rx="6"/><rect x="243" y="50" width="38" height="38" rx="6"/>
+      <rect x="114" y="100" width="38" height="38" rx="6"/><rect x="157" y="100" width="38" height="38" rx="6"/><rect x="200" y="100" width="38" height="38" rx="6"/><rect x="243" y="100" width="38" height="38" rx="6"/>
+      <rect x="114" y="150" width="38" height="38" rx="6"/><rect x="157" y="150" width="38" height="38" rx="6"/><rect x="200" y="150" width="38" height="38" rx="6"/><rect x="243" y="150" width="38" height="38" rx="6"/>
+      <rect x="114" y="200" width="38" height="38" rx="6"/><rect x="157" y="200" width="38" height="38" rx="6"/><rect x="200" y="200" width="38" height="38" rx="6"/><rect x="243" y="200" width="38" height="38" rx="6"/>
+    </g>
+    <text x="133" y="80">B</text><text x="176" y="80">O</text><text x="219" y="80">E</text><text x="262" y="80">T</text>
+    <text x="133" y="130">R</text><text x="176" y="130">G</text><text x="219" y="130">G</text><text x="262" y="130">A</text>
+    <text x="133" y="180">S</text><text x="176" y="180">N</text><text x="219" y="180">L</text><text x="262" y="180">E</text>
+    <text x="133" y="230">I</text><text x="176" y="230">D</text><text x="219" y="230">M</text><text x="262" y="230">P</text>
+  </g>
+</svg>

@@ -1,0 +1,21 @@
+{
+  "id": "rail-baron",
+  "name": "Rail Baron",
+  "version": "1.0.0",
+  "subtitle": "Ride the rails, buy up America's railroads, and race home with $200,000.",
+  "description": "The classic railroad empire game for 3 to 6 barons. Roll for destination cities across 7 regions of the United States and ride 28 historic railroads to collect payoffs. Buy railroads so rivals pay you to use them, and upgrade to an Express or Superchief for bonus rolls. Once you have $200,000, declare and race home before a rival lands on your spot for a $50,000 rover play. Games run 2 to 4 hours and save as you go.",
+  "tags": [
+    "Classic",
+    "Strategy",
+    "Long game"
+  ],
+  "players": {
+    "min": 2,
+    "max": 6,
+    "recommended": 4
+  },
+  "averageDurationMinutes": 180,
+  "difficultyToLearn": "Medium",
+  "cover": "cover.webp",
+  "cast": false
+}

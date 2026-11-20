@@ -1,0 +1,20 @@
+{
+  "id": "dots-and-boxes",
+  "name": "Dots and Boxes",
+  "version": "1.0.0",
+  "subtitle": "Draw a line, close a box, go again. Most boxes wins.",
+  "description": "Take turns drawing one line between two dots on your phone. Close the fourth side of a box and it's yours, and you go again. The board grows with more players. When every box is claimed, the player with the most boxes wins.",
+  "tags": [
+    "Classic",
+    "Strategy",
+    "Quick"
+  ],
+  "players": {
+    "min": 2,
+    "max": 6,
+    "recommended": 3
+  },
+  "averageDurationMinutes": 10,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp"
+}

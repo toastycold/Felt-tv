@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#1f4d3a"/>
+  <path d="M40 230 A160 160 0 0 1 360 230 Z" fill="#f7f0dc"/>
+  <path d="M200 230 L254 79 A160 160 0 0 1 300 105 Z" fill="#f2c230"/>
+  <path d="M200 230 L268 85 A160 160 0 0 1 287 96 Z" fill="#d6453d"/>
+  <line x1="200" y1="230" x2="262" y2="96" stroke="#22201b" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="200" cy="230" r="14" fill="#22201b"/>
+  <rect x="30" y="230" width="340" height="14" rx="4" fill="#d9cba3"/>
+  <g font-family="Arial, sans-serif" font-weight="800" font-size="22" fill="#f7f0dc">
+    <text x="40" y="275">COLD</text><text x="360" y="275" text-anchor="end">HOT</text>
+  </g>
+</svg>

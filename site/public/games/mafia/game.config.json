@@ -1,0 +1,21 @@
+{
+  "id": "mafia",
+  "name": "Mafia",
+  "version": "1.0.0",
+  "subtitle": "The town sleeps. The Mafia doesn't. Find them before it's too late.",
+  "description": "Everyone gets a secret role: Villager, Mafia, Doctor or Detective. At night the Mafia choose a victim, the Doctor protects someone and the Detective investigates, all on their phones. By day the town argues and votes someone out. The TV can narrate so nobody sits out, or a player can narrate: their phone shows every role and night pick, and they reveal each death when they're ready. Town wins by finding every Mafia member; the Mafia win once they match the town in number.",
+  "tags": [
+    "Social deduction",
+    "Hidden roles",
+    "Big group"
+  ],
+  "players": {
+    "min": 5,
+    "max": 16,
+    "recommended": 8
+  },
+  "averageDurationMinutes": 30,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": []
+}

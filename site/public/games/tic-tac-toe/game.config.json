@@ -1,0 +1,21 @@
+{
+  "id": "tic-tac-toe",
+  "name": "Tic Tac Toe",
+  "version": "1.0.0",
+  "subtitle": "Three in a row wins. Play a friend or the computer.",
+  "description": "The classic grid game on the big screen, with each phone as a controller. The first two players to join take X and O. Playing alone? The computer takes the other side.",
+  "tags": [
+    "Classic",
+    "Abstract",
+    "Family"
+  ],
+  "players": {
+    "min": 1,
+    "max": 8,
+    "recommended": 2
+  },
+  "averageDurationMinutes": 5,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": []
+}

@@ -1,0 +1,33 @@
+{
+  "id": "just-one",
+  "name": "Just One",
+  "version": "1.0.0",
+  "subtitle": "Everyone gives one clue. Matching clues get thrown out.",
+  "description": "One player guesses while everyone else sees the mystery word on their phone and writes a single-word clue. Any clues that match are removed before the guesser sees them, so be helpful but original. Work together to get as many of the 13 words as you can.",
+  "tags": [
+    "Party",
+    "Word",
+    "Co-op"
+  ],
+  "players": {
+    "min": 3,
+    "max": 12,
+    "recommended": 6
+  },
+  "averageDurationMinutes": 20,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": [
+    {
+      "kind": "word",
+      "label": "A mystery word",
+      "fields": [
+        {
+          "key": "text",
+          "label": "Word",
+          "placeholder": "Pineapple"
+        }
+      ]
+    }
+  ]
+}

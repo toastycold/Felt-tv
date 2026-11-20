@@ -1,0 +1,20 @@
+{
+  "id": "hangman",
+  "name": "Hangman",
+  "version": "1.0.0",
+  "subtitle": "One secret word, a lot of guessing, and six misses to spare.",
+  "description": "Each round one player secretly types a word or phrase on their phone, with an optional hint. Everyone else takes turns choosing letters or trying to solve it. Guessers score for letters they find and for solving. The word-picker scores for every miss and gets a bonus for stumping the room.",
+  "tags": [
+    "Word",
+    "Classic",
+    "Family"
+  ],
+  "players": {
+    "min": 2,
+    "max": 12,
+    "recommended": 5
+  },
+  "averageDurationMinutes": 15,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp"
+}

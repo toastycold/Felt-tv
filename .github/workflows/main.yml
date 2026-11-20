@@ -2,6 +2,7 @@ name: Build Felt TV app
 on:
   push:
     branches: [main]
+    paths-ignore: ['site/**', '.github/workflows/deploy-site.yml']
   workflow_dispatch:
 permissions:
   contents: write

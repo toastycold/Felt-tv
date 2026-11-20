@@ -1,0 +1,21 @@
+{
+  "id": "skyjo",
+  "name": "Skyjo",
+  "version": "1.0.0",
+  "subtitle": "Swap your way to the lowest score. Clear columns of three.",
+  "description": "Everyone has 12 face-down cards. On your turn, draw a card and swap it into your grid, or toss it and flip one of yours. Three matching cards in a column disappear. When someone reveals their whole grid, everyone else gets one last turn. The first to 100 points ends the game, and the lowest total wins.",
+  "tags": [
+    "Cards",
+    "Family",
+    "Quick turns"
+  ],
+  "players": {
+    "min": 2,
+    "max": 8,
+    "recommended": 4
+  },
+  "averageDurationMinutes": 30,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": []
+}

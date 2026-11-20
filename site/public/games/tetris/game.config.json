@@ -1,0 +1,20 @@
+{
+  "id": "tetris",
+  "name": "Tetris Battle",
+  "version": "1.0.0",
+  "subtitle": "Everyone plays Tetris on their phone. Last stack standing wins.",
+  "description": "Each phone runs its own lag-free game of Tetris with big touch buttons, while the TV shows everyone's board live. Clear 2 or more lines at once to send junk rows to a random opponent (a Tetris sends 4). Top out and you're out. The last player standing wins. Play alone for a high score.",
+  "tags": [
+    "Arcade",
+    "Speed",
+    "Battle"
+  ],
+  "players": {
+    "min": 1,
+    "max": 8,
+    "recommended": 4
+  },
+  "averageDurationMinutes": 5,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp"
+}

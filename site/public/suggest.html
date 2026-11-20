@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suggest · Felt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1f4d3a">
+  <link rel="icon" type="image/png" href="icons/favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Felt">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
+</head>
+<body class="phone">
+  <header class="topbar">
+    <a class="wordmark" href="index.html">Felt</a>
+    <nav><a href="host.html">Host</a><a href="play.html">Join</a></nav>
+  </header>
+  <main id="app" class="page" style="max-width:560px"><p class="muted">Loading…</p></main>
+
+  <script type="module">
+    import { ensureUser, warnIfNotConfigured } from './js/firebase.js';
+    import { loadCatalog, escapeHtml } from './js/catalog.js';
+    import { kindsFor, submitSuggestion, MAX_LEN } from './js/suggestions.js';
+
+    const $ = (s) => document.querySelector(s);
+    const params = new URLSearchParams(location.search);
+
+    if (!warnIfNotConfigured()) {
+      const games = await loadCatalog();
+      const game = games.find((g) => g.id === params.get('game'));
+      if (!game) {
+        $('#app').innerHTML = `<h1>Suggest something</h1><p class="muted">Pick a game.</p>
+          <div class="stack">${games.map((g) => `<a class="choice-btn" href="suggest.html?game=${g.id}" style="text-decoration:none">${escapeHtml(g.name)}</a>`).join('')}</div>`;
+      } else {
+        const kinds = kindsFor(game);
+        $('#app').innerHTML = `
+          <h1>Suggest for ${escapeHtml(game.name)}</h1>
+          <p class="muted">Ideas get reviewed before they show up in the game.</p>
+          <form id="form" class="sheet stack">
+            <label class="stack" style="gap:.3rem;font-weight:700">What are you suggesting?
+              <select id="kind" class="big-text-input">${kinds.map((k, i) => `<option value="${i}">${escapeHtml(k.label)}</option>`).join('')}</select>
+            </label>
+            <div id="fields" class="stack"></div>
+            <label class="stack" style="gap:.3rem;font-weight:700">Your name (optional)
+              <input id="name" class="big-text-input" maxlength="16" value="${escapeHtml(localStorage.getItem('tt-name') || '')}">
+            </label>
+            <button class="btn btn-primary btn-big">Send suggestion</button>
+            <p id="msg" class="small" role="status"></p>
+          </form>`;
+        const drawFields = () => {
+          const k = kinds[Number($('#kind').value)];
+          $('#fields').innerHTML = k.fields.map((f) => `
+            <label class="stack" style="gap:.3rem;font-weight:700">${escapeHtml(f.label)}
+              ${f.long
+                ? `<textarea data-key="${f.key}" class="big-text-input" rows="4" maxlength="${MAX_LEN}" placeholder="${escapeHtml(f.placeholder || '')}" required></textarea>`
+                : `<input data-key="${f.key}" class="big-text-input" maxlength="120" placeholder="${escapeHtml(f.placeholder || '')}" required>`}
+            </label>`).join('');
+        };
+        drawFields();
+        $('#kind').onchange = drawFields;
+        $('#form').onsubmit = async (e) => {
+          e.preventDefault();
+          const k = kinds[Number($('#kind').value)];
+          const fields = Object.fromEntries([...document.querySelectorAll('[data-key]')].map((i) => [i.dataset.key, i.value.trim()]));
+          const btn = $('#form button');
+          btn.disabled = true;
+          try {
+            await submitSuggestion(await ensureUser(), game.id, k.kind, fields, $('#name').value.trim());
+            $('#msg').textContent = 'Thanks! Your suggestion is waiting for review.';
+            document.querySelectorAll('[data-key]').forEach((i) => (i.value = ''));
+          } catch (err) {
+            console.error(err);
+            $('#msg').textContent = 'That didn’t send. Wait a few seconds between suggestions, then try again.';
+          }
+          setTimeout(() => (btn.disabled = false), 2000);
+        };
+      }
+    }
+  </script>
+</body>
+</html>

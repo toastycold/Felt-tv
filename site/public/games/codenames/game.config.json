@@ -1,0 +1,33 @@
+{
+  "id": "codenames",
+  "name": "Codenames",
+  "version": "1.0.0",
+  "subtitle": "Two teams, one-word clues, and one word you must never pick.",
+  "description": "Split into Red and Blue. Each team's spymaster sees the secret key on their phone and gives a one-word clue plus a number. Teammates pick words from the 5\u00d75 grid on their phones. Find all your team's words first, but pick the assassin and you lose instantly.",
+  "tags": [
+    "Party",
+    "Word",
+    "Teams"
+  ],
+  "players": {
+    "min": 4,
+    "max": 12,
+    "recommended": 6
+  },
+  "averageDurationMinutes": 15,
+  "difficultyToLearn": "Medium",
+  "cover": "cover.webp",
+  "suggestions": [
+    {
+      "kind": "word",
+      "label": "A board word",
+      "fields": [
+        {
+          "key": "text",
+          "label": "Word (one word)",
+          "placeholder": "Comet"
+        }
+      ]
+    }
+  ]
+}

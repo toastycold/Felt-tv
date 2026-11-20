@@ -1,0 +1,33 @@
+{
+  "id": "telestrations",
+  "name": "Telestrations",
+  "version": "1.0.0",
+  "subtitle": "Draw it, guess it, pass it on. Watch the word fall apart.",
+  "description": "Everyone picks a secret word and draws it on their phone. Your sketchbook passes to the next player, who guesses what you drew. The next person draws that guess, and so on around the room. At the end, flip through every sketchbook on the TV and see how 'birthday cake' became 'volcano'.",
+  "tags": [
+    "Party",
+    "Drawing",
+    "Funny"
+  ],
+  "players": {
+    "min": 3,
+    "max": 10,
+    "recommended": 6
+  },
+  "averageDurationMinutes": 20,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": [
+    {
+      "kind": "word",
+      "label": "Something to draw",
+      "fields": [
+        {
+          "key": "text",
+          "label": "Word or phrase",
+          "placeholder": "Haunted bounce house"
+        }
+      ]
+    }
+  ]
+}

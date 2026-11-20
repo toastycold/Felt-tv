@@ -1,0 +1,20 @@
+{
+  "id": "boggle",
+  "name": "Boggle",
+  "version": "1.0.0",
+  "subtitle": "Sixteen letter cubes, three minutes, and every word you can find.",
+  "description": "Everyone hunts the same 4\u00d74 letter grid on the TV at once. Chain touching letters (sideways, up and down, or diagonal) to make words of 3 or more letters, using each cube only once per word, and type them on your phone. When time runs out, words that two or more people found are crossed off. Longer words score more.",
+  "tags": [
+    "Word",
+    "Classic",
+    "Speed"
+  ],
+  "players": {
+    "min": 1,
+    "max": 12,
+    "recommended": 4
+  },
+  "averageDurationMinutes": 10,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp"
+}

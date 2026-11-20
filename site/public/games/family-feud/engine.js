@@ -1,0 +1,302 @@
+// Family Feud rules. Runs on the host screen.
+// Round: face-off -> the winning team guesses (3 strikes) -> the other team gets one steal -> points.
+import { BaseGameEngine } from '../../js/engine-base.js';
+import { shuffle } from '../../js/ui.js';
+import { SURVEYS } from './surveys.js';
+
+const TEAMS = ['red', 'blue'];
+const other = (t) => (t === 'red' ? 'blue' : 'red');
+const MULTS = [1, 1, 2, 3];
+
+// ---------- answer matching ----------
+const FILLER = new Set(['a', 'an', 'the', 'my', 'your', 'some', 'to', 'of', 'go']);
+function norm(s) {
+  return String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/).filter((w) => w && !FILLER.has(w))
+    .map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w))
+    .join(' ');
+}
+function lev(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  }
+  return d[a.length][b.length];
+}
+/** How well a guess matches one way of saying an answer: 0 = no, higher = better. */
+function score(g, a) {
+  if (!g || !a) return 0;
+  if (g === a) return 1000;
+  const pad = (x) => ` ${x} `;
+  if ((a.length >= 3 && pad(g).includes(pad(a))) || (g.length >= 4 && pad(a).includes(pad(g)))) return 100 + Math.min(g.length, a.length);
+  const tol = a.length >= 9 ? 2 : a.length >= 5 ? 1 : 0;
+  return tol > 0 && lev(g, a) <= tol ? 10 : 0;
+}
+/** Index of the answer that best matches the guess, or -1. */
+export function matchAnswer(guess, answers) {
+  const g = norm(guess);
+  let best = -1, bestScore = 0;
+  answers.forEach((ans, i) => {
+    for (const x of [ans.text, ...ans.alts]) {
+      const sc = score(g, norm(x));
+      if (sc > bestScore) { best = i; bestScore = sc; }
+    }
+  });
+  return best;
+}
+
+export default class FamilyFeudEngine extends BaseGameEngine {
+  onInit() {
+    this.state = {
+      phase: 'lobby',   // lobby | setup | faceoff | play | steal | reveal | over
+      teams: { red: [], blue: [] },
+      scores: { red: 0, blue: 0 },
+      round: 0, rounds: MULTS.length, mult: 1,
+      question: '', board: [],         // board[i] = { text, points } once revealed, else null
+      faceoff: null,                   // { red: id, blue: id, done: [ids] }
+      control: '', strikes: 0, bank: 0,
+      current: '',                     // whose turn it is to guess (their character waves)
+      waiting: [],                     // who still needs to answer (their character thinks)
+      next: { red: 0, blue: 0 },
+      last: null,                      // { by, text, hit: bool, already: bool }
+      roundWinner: '', winner: '', message: '', error: '',
+      names: { red: 'Red family', blue: 'Blue family' },
+    };
+    this.secret = { deck: [], answers: [], faceoff: {} };
+  }
+
+  tn(t) { return this.state.names?.[t] || (t === 'red' ? 'Red family' : 'Blue family'); }
+
+  teamOf(id) { return TEAMS.find((t) => this.state.teams[t].includes(id)) || ''; }
+
+  removeFromTeams(id) {
+    for (const t of TEAMS) this.state.teams[t] = this.state.teams[t].filter((x) => x !== id);
+  }
+
+  pick(team) {
+    const s = this.state;
+    const list = s.teams[team];
+    if (!list.length) return '';
+    const id = list[s.next[team] % list.length];
+    s.next[team] += 1;
+    return id;
+  }
+
+  onGameStart() {
+    super.onGameStart();
+    const s = this.state;
+    s.teams = { red: [], blue: [] };
+    shuffle([...this.players]).forEach((p, i) => s.teams[i % 2 ? 'blue' : 'red'].push(p.id));
+    s.phase = 'setup';
+    this.sync();
+  }
+
+  onPlayerJoin(id) {
+    if (!this.hasStarted || this.teamOf(id)) return;
+    const { teams } = this.state;
+    teams[teams.red.length <= teams.blue.length ? 'red' : 'blue'].push(id);
+    this.sync();
+  }
+
+  onPlayerLeave(id) {
+    const s = this.state;
+    this.removeFromTeams(id);
+    s.waiting = s.waiting.filter((x) => x !== id);
+    if (s.current === id && s.phase === 'play') s.current = this.pick(s.control);
+    if (s.phase === 'faceoff' && s.faceoff && TEAMS.some((t) => s.faceoff[t] === id)) this.startFaceoff();
+    this.sync();
+  }
+
+  // ---------- round flow ----------
+  newGame() {
+    const s = this.state;
+    const extra = this.extraItems('survey').map((x) => {
+      const answers = String(x.answers || '').split(',').map((t) => t.trim()).filter(Boolean).slice(0, 8);
+      const total = 100;
+      return { q: x.text, answers: answers.map((text, i) => ({ text, points: Math.max(2, Math.round((total * (answers.length - i)) / ((answers.length * (answers.length + 1)) / 2))), alts: [] })) };
+    }).filter((x) => x.q && x.answers.length >= 3);
+    this.secret.deck = shuffle([...SURVEYS, ...extra]);
+    Object.assign(s, { scores: { red: 0, blue: 0 }, round: 0, winner: '', roundWinner: '' });
+    this.startRound();
+  }
+
+  startRound() {
+    const s = this.state;
+    if (!this.secret.deck.length) this.secret.deck = shuffle([...SURVEYS]);
+    const survey = this.secret.deck.pop();
+    this.secret.answers = survey.answers;
+    s.round += 1;
+    s.mult = MULTS[Math.min(s.round, MULTS.length) - 1];
+    Object.assign(s, {
+      question: survey.q, board: survey.answers.map(() => null),
+      control: '', strikes: 0, bank: 0, last: null, roundWinner: '', message: '',
+    });
+    this.startFaceoff();
+  }
+
+  startFaceoff() {
+    const s = this.state;
+    s.faceoff = { red: this.pick('red'), blue: this.pick('blue'), done: [] };
+    this.secret.faceoff = {};
+    s.phase = 'faceoff';
+    s.current = '';
+    s.waiting = TEAMS.map((t) => s.faceoff[t]).filter(Boolean);
+  }
+
+  reveal(i) {
+    const s = this.state;
+    if (s.board[i]) return 0;
+    const a = this.secret.answers[i];
+    s.board[i] = { text: a.text, points: a.points };
+    s.bank += a.points;
+    return a.points;
+  }
+
+  boardCleared() { return this.state.board.every(Boolean); }
+
+  resolveFaceoff() {
+    const s = this.state;
+    const f = this.secret.faceoff;
+    const hits = TEAMS.map((t) => ({ t, ...f[t] })).filter((x) => x.rank >= 0);
+    s.last = null;
+    if (!hits.length) {
+      s.message = `Neither "${f.red?.text || '…'}" nor "${f.blue?.text || '…'}" is on the board. Next pair!`;
+      this.startFaceoff();
+      return;
+    }
+    hits.forEach((h) => this.reveal(h.rank));
+    hits.sort((a, b) => a.rank - b.rank || a.at - b.at);
+    const win = hits[0].t;
+    s.control = win;
+    s.message = `${this.tn(win)} wins the face-off with "${hits[0].text}"!`;
+    if (this.boardCleared()) return this.endRound(win);
+    s.phase = 'play';
+    s.waiting = [];
+    s.current = this.pick(win);
+  }
+
+  strike() {
+    const s = this.state;
+    s.strikes += 1;
+    if (s.strikes >= 3) {
+      s.phase = 'steal';
+      s.current = '';
+      s.waiting = [...s.teams[other(s.control)]];
+      s.message = `Three strikes! ${this.tn(other(s.control))} can steal with one answer.`;
+    } else {
+      s.current = this.pick(s.control);
+    }
+  }
+
+  endRound(team) {
+    const s = this.state;
+    const won = s.bank * s.mult;
+    s.roundWinner = team;
+    s.scores[team] += won;
+    s.board = this.secret.answers.map((a, i) => s.board[i] ? { ...s.board[i] } : { text: a.text, points: a.points, late: true });
+    s.message = `${this.tn(team)} takes ${won} point${won === 1 ? '' : 's'}${s.mult > 1 ? ` (${s.mult}x round)` : ''}!`;
+    s.phase = s.round >= s.rounds ? 'over' : 'reveal';
+    s.current = '';
+    s.waiting = [];
+    if (s.phase === 'over') {
+      s.winner = s.scores.red === s.scores.blue ? 'tie' : s.scores.red > s.scores.blue ? 'red' : 'blue';
+    }
+  }
+
+  processAction(type, p, meta) {
+    const s = this.state;
+    const me = meta.playerId;
+    const host = meta.isBoard || meta.isVip;
+    const text = String(p?.text || '').trim().slice(0, 40);
+    s.error = '';
+
+    switch (type) {
+      case 'game:join-team':
+        if (s.phase !== 'setup' || !TEAMS.includes(p.team) || meta.isBoard) return;
+        this.removeFromTeams(me);
+        s.teams[p.team].push(me);
+        break;
+      case 'game:team-name': {
+        const team = this.teamOf(me);
+        const name = String(p?.name || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+        if (!team) return;
+        s.names[team] = name || (team === 'red' ? 'Red family' : 'Blue family');
+        break;
+      }
+      case 'game:begin':
+        if (s.phase !== 'setup' || !host) return;
+        if (!s.teams.red.length || !s.teams.blue.length) { s.error = 'Each team needs at least one player.'; break; }
+        this.newGame();
+        break;
+
+      case 'game:faceoff': {
+        if (s.phase !== 'faceoff' || !text) return;
+        const team = TEAMS.find((t) => s.faceoff[t] === me);
+        if (!team || this.secret.faceoff[team]) return;
+        this.secret.faceoff[team] = { text, rank: matchAnswer(text, this.secret.answers), at: meta.timestamp || Date.now() };
+        s.faceoff.done.push(me);
+        s.waiting = s.waiting.filter((x) => x !== me);
+        if (TEAMS.every((t) => this.secret.faceoff[t] || !s.faceoff[t])) this.resolveFaceoff();
+        break;
+      }
+
+      case 'game:guess': {
+        if (s.phase !== 'play' || me !== s.current || !text) return;
+        const i = matchAnswer(text, this.secret.answers);
+        if (i >= 0 && s.board[i]) { s.last = { by: me, text, hit: false, already: true }; break; }
+        if (i >= 0) {
+          this.reveal(i);
+          s.last = { by: me, text, hit: true };
+          if (this.boardCleared()) { this.endRound(s.control); break; }
+          s.current = this.pick(s.control);
+        } else {
+          s.last = { by: me, text, hit: false };
+          this.strike();
+        }
+        break;
+      }
+
+      case 'game:steal': {
+        if (s.phase !== 'steal' || this.teamOf(me) !== other(s.control) || !text) return;
+        const i = matchAnswer(text, this.secret.answers);
+        s.last = { by: me, text, hit: i >= 0 && !s.board[i] };
+        if (s.last.hit) { this.reveal(i); this.endRound(other(s.control)); } else this.endRound(s.control);
+        break;
+      }
+
+      // TV / VIP controls
+      case 'game:time-up':
+        if (s.phase !== 'play' || !host) return;
+        s.last = { by: s.current, text: '(time ran out)', hit: false };
+        this.strike();
+        break;
+      case 'game:undo-strike':
+        if (s.phase !== 'play' || !host || s.strikes < 1) return;
+        s.strikes -= 1;
+        s.message = 'Strike taken back.';
+        break;
+      case 'game:skip-faceoff': {
+        if (s.phase !== 'faceoff' || !host) return;
+        // Someone is stuck: whoever already answered decides it, otherwise a fresh pair.
+        if (Object.keys(this.secret.faceoff).length) {
+          for (const t of TEAMS) if (!this.secret.faceoff[t]) s.faceoff[t] = '';
+          this.resolveFaceoff();
+        } else this.startFaceoff();
+        break;
+      }
+      case 'game:next-round':
+        if (s.phase !== 'reveal' || !host) return;
+        this.startRound();
+        break;
+      case 'game:new-game':
+        if (s.phase !== 'over' || !host) return;
+        s.phase = 'setup';
+        break;
+      default:
+        return;
+    }
+    this.sync();
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "secret-hitler",
+  "name": "Secret Hitler",
+  "version": "1.0.0",
+  "subtitle": "Hidden roles, shaky alliances, and one very secret leader.",
+  "description": "Players are secretly Liberals or Fascists, and one Fascist is Hitler. Each round a President and Chancellor are elected and pass a policy from a rigged deck. Liberals win by passing 5 Liberal policies or assassinating Hitler. Fascists win with 6 Fascist policies or by getting Hitler elected Chancellor late in the game. Based on Secret Hitler by Goat, Wolf & Cabbage (CC BY-NC-SA 4.0).",
+  "tags": [
+    "Social deduction",
+    "Hidden roles",
+    "Strategy"
+  ],
+  "players": {
+    "min": 5,
+    "max": 10,
+    "recommended": 7
+  },
+  "averageDurationMinutes": 40,
+  "difficultyToLearn": "Medium",
+  "cover": "cover.webp",
+  "suggestions": []
+}

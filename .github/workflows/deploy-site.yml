@@ -1,0 +1,21 @@
+name: Deploy Felt website
+# Deploys site/ to felt-games.web.app whenever it changes, or from Actions > Run workflow.
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', '.github/workflows/deploy-site.yml']
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Firebase
+        env:
+          FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
+        run: |
+          if [ -z "$FIREBASE_KEY" ]; then echo "::error::Add the FIREBASE_KEY secret first (Settings > Secrets and variables > Actions)"; exit 1; fi
+          echo "$FIREBASE_KEY" > "$RUNNER_TEMP/key.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/key.json"
+          cd site
+          npx --yes firebase-tools deploy --project felt-games --non-interactive

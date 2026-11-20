@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#1f4d3a"/>
+  <g transform="rotate(-5 120 150)"><rect x="40" y="60" width="160" height="120" rx="12" fill="#fffdf6"/>
+    <path d="M70 150 q30 -60 60 -10 t60 -20" stroke="#d6453d" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <circle cx="95" cy="100" r="18" stroke="#2f6fb5" stroke-width="6" fill="none"/></g>
+  <g transform="rotate(4 280 170)"><rect x="210" y="120" width="150" height="80" rx="12" fill="#f7f0dc"/>
+    <text x="285" y="170" font-family="Arial, sans-serif" font-weight="800" font-size="26" text-anchor="middle" fill="#22201b">a volcano?</text></g>
+  <path d="M190 220 q40 40 90 0" stroke="#f2c230" stroke-width="5" fill="none" stroke-linecap="round" marker-end="url(#a)"/>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#f2c230"/></marker></defs>
+</svg>

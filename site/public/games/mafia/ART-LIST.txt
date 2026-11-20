@@ -1,0 +1,22 @@
+Make 4 separate images, one item per image. Make EXACTLY one image for each numbered item below and nothing more: no variations, no alternates, no repeats of any earlier image, no combined grids, no code, no ZIP or downloadable files. Generate each image directly here with the image tool, in the order listed. Every image is SQUARE and full-bleed (fills the frame edge to edge, no borders). Absolutely NO text, letters, numbers or signs with writing anywhere. No real people. Nothing gory: no blood, no weapons being used.
+STYLE: painted 1920s small-town film-noir illustration. Moody and cinematic, rain-slick cobblestones, warm amber lamplight against deep blue shadows, soft painterly brushwork, slightly mysterious but family-friendly. Any people are seen from behind, in silhouette, or with their faces hidden by hat brims and shadow.
+
+1. A mysterious figure in a fedora and a long pinstripe coat standing under a single streetlamp at night, face completely hidden in shadow, a thin curl of smoke drifting up. (Mafia role card)
+2. A townsperson seen from behind holding a glowing lantern, looking out over a cozy small-town main street at dusk with lit shop windows. (Villager role card)
+3. An old-fashioned black leather doctor's bag with a stethoscope and a small red cross badge, sitting on a wooden table lit by a candle. (Doctor role card)
+4. A detective's desk at night: a brass magnifying glass, a notebook, a trench coat and hat on a coat rack behind, lit by a green desk lamp. (Detective role card)
+5. WIDE scene, keep the important detail in the middle band: a small 1920s town's main street at night under a full moon, empty and quiet, a few warm windows lit, fog drifting low. (Night background)
+6. WIDE scene, keep the important detail in the middle band: the same small town square on a bright morning, tiny distant townsfolk gathering by a fountain, bunting between the buildings. (Day background)
+7. A chalk outline on wet cobblestones at dawn, a dropped fedora beside it, a police lantern glowing nearby, quiet and somber. (Someone was eliminated in the night)
+8. A doctor's bag open on a doorstep at sunrise, rolled bandages spilling out, warm golden light, hopeful mood. (The Doctor saved someone)
+9. Townsfolk celebrating in the town square at night with lanterns and confetti, distant figures in silhouette, joyful. (Town wins)
+10. A long black 1920s car with glowing headlights parked on a foggy main street, silhouettes in fedoras beside it, ominous. (Mafia wins)
+11. Card-back pattern: deep crimson and black art-deco design with a small gold fedora emblem in the center, symmetrical, ornate border. (Card back)
+
+---------------------------------------------------------------------------
+After generating: convert to webp and save in games/mafia/art/ with these names
+(roles 640px, backgrounds 1000px wide, the rest 640px), then set ART_READY = true in shared.js.
+  1 role-mafia      2 role-villager   3 role-doctor     4 role-detective
+  5 town-night      6 town-day        7 morning-death   8 morning-saved
+  9 town-wins      10 mafia-wins     11 card-back
+Runner settings: folder game-art/mafia-art, 4 per batch, "New chat for each batch" on.

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Felt · Game night on the big screen</title>
+  <meta name="description" content="Party and board games on your TV. Everyone plays from their phone. No app to install.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1f4d3a">
+  <link rel="icon" type="image/png" href="icons/favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Felt">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="index.html">Felt</a>
+    <nav><a href="host.html">Host</a><a href="play.html">Join</a></nav>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <div>
+        <h1>Game night on the big screen</h1>
+        <p class="sub">Put a game up on the TV. Everyone plays from their phone. Nothing to install.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary btn-big" href="host.html">Host a game on this screen</a>
+        </div>
+      </div>
+
+      <form class="join-card" id="join">
+        <h2>Got a room code?</h2>
+        <p>It's on the TV. Type it in to join.</p>
+        <div id="tiles"></div>
+        <button class="btn btn-primary btn-big">Join the game</button>
+      </form>
+    </section>
+
+    <section>
+      <div class="shelf-head">
+        <h2>On the shelf</h2>
+        <div class="filters">
+          <input id="search" class="search" type="search" placeholder="Search games" aria-label="Search games">
+          <div class="counts" id="counts"></div>
+        </div>
+      </div>
+      <div id="games" class="shelf"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { loadCatalog, escapeHtml } from './js/catalog.js';
+    import { wireTileInput, tileInputHtml } from './js/ui.js';
+
+    // Join card
+    document.querySelector('#tiles').innerHTML = tileInputHtml();
+    const getCode = wireTileInput(document.querySelector('#tiles'));
+    document.querySelector('#join').onsubmit = (e) => {
+      e.preventDefault();
+      const code = getCode();
+      if (code.length !== 4) { document.querySelector('#tiles input:not([value])')?.focus(); return; }
+      location.href = `play.html?code=${code}`;
+    };
+
+    // Game shelf
+    const games = await loadCatalog();
+    let count = null;
+    const counts = [2, 3, 4, 5, 6, 8];
+
+    function render() {
+      const q = document.querySelector('#search').value.trim().toLowerCase();
+      const list = games.filter((g) =>
+        (!q || (g.name + ' ' + (g.tags || []).join(' ')).toLowerCase().includes(q)) &&
+        (!count || (g.players.min <= count && g.players.max >= count)));
+
+      document.querySelector('#counts').innerHTML = '<span>Players</span>' + counts
+        .map((n) => `<button class="token ${n === count ? 'active' : ''}" data-n="${n}" aria-pressed="${n === count}">${n === 8 ? '8+' : n}</button>`).join('');
+
+      document.querySelector('#games').innerHTML = list.length ? list.map((g) => `
+        <article class="box">
+          <div class="box-lid"><img src="${g.coverUrl}" alt=""></div>
+          <div class="box-label">
+            <h3>${escapeHtml(g.name)}</h3>
+            <p>${escapeHtml(g.subtitle || '')}</p>
+            <p class="box-facts"><span>${g.players.min}–${g.players.max} players</span><span>${g.averageDurationMinutes} min</span></p>
+            <div class="box-actions">
+              <a class="btn btn-primary" href="host.html?game=${encodeURIComponent(g.id)}">Host ${escapeHtml(g.name)}</a>
+              <a class="box-suggest" href="suggest.html?game=${encodeURIComponent(g.id)}">Suggest</a>
+            </div>
+          </div>
+        </article>`).join('') : '<p class="empty">No games fit that. Try another player count.</p>';
+    }
+
+    document.querySelector('#search').oninput = render;
+    document.querySelector('#counts').onclick = (e) => {
+      const n = Number(e.target.dataset.n);
+      if (n) { count = count === n ? null : n; render(); }
+    };
+    render();
+  </script>
+</body>
+</html>

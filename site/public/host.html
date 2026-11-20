@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host · Felt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1f4d3a">
+  <link rel="icon" type="image/png" href="icons/favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Felt">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
+</head>
+<body class="host">
+  <header class="topbar">
+    <a class="wordmark" href="index.html">Felt</a>
+    <nav><a href="host.html">Host</a><a href="play.html">Join</a></nav>
+  </header>
+  <main id="app" class="page"><p class="muted">Setting up…</p></main>
+  <script type="module" src="js/host.js"></script>
+</body>
+</html>

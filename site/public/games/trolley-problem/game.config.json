@@ -1,0 +1,38 @@
+{
+  "id": "trolley-problem",
+  "name": "Trolley Problem",
+  "version": "1.0.0",
+  "subtitle": "Pull the lever or don't. Then guess what everyone else did.",
+  "description": "A runaway trolley, two tracks, and some very questionable choices. Everyone secretly decides whether to pull the lever, then predicts what most of the group picked. Score a point for every correct prediction.",
+  "tags": [
+    "Party",
+    "Debate",
+    "Quick"
+  ],
+  "players": {
+    "min": 2,
+    "max": 16,
+    "recommended": 6
+  },
+  "averageDurationMinutes": 10,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": [
+    {
+      "kind": "dilemma",
+      "label": "A trolley dilemma",
+      "fields": [
+        {
+          "key": "stay",
+          "label": "If nobody pulls the lever, it hits\u2026",
+          "placeholder": "Five people who chew loudly"
+        },
+        {
+          "key": "pull",
+          "label": "If you pull the lever, it hits\u2026",
+          "placeholder": "One person who hums constantly"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "quiplash",
+  "name": "Quiplash",
+  "version": "1.0.0",
+  "subtitle": "Write the funniest answer. Win the head-to-head vote.",
+  "description": "Everyone answers silly prompts on their phone. Each prompt goes to two players, and their answers face off on the TV while everyone else votes. Rounds 1 and 2 are head-to-head; in the final round everyone answers the same prompt.",
+  "tags": [
+    "Party",
+    "Writing",
+    "Funny"
+  ],
+  "players": {
+    "min": 3,
+    "max": 10,
+    "recommended": 6
+  },
+  "averageDurationMinutes": 20,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": [
+    {
+      "kind": "prompt",
+      "label": "A Quiplash prompt",
+      "fields": [
+        {
+          "key": "text",
+          "label": "Prompt",
+          "placeholder": "The worst thing to say to a mime"
+        }
+      ]
+    }
+  ]
+}

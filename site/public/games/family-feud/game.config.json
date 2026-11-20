@@ -1,0 +1,39 @@
+{
+  "id": "family-feud",
+  "name": "Family Feud",
+  "version": "1.0.0",
+  "subtitle": "Survey says! Two families race to guess the top answers.",
+  "description": "Split into the Red and Blue families. Two players face off to name the top answer, and the winner's family takes control. Take turns naming answers from your phones. Three strikes and the other family can steal the whole pot with one guess. Rounds 3 and 4 are worth double and triple.",
+  "tags": [
+    "Party",
+    "Teams",
+    "Family"
+  ],
+  "players": {
+    "min": 2,
+    "max": 16,
+    "recommended": 8
+  },
+  "averageDurationMinutes": 20,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": [
+    {
+      "kind": "survey",
+      "label": "A survey question",
+      "fields": [
+        {
+          "key": "text",
+          "label": "Question",
+          "placeholder": "Name something you bring to a picnic."
+        },
+        {
+          "key": "answers",
+          "label": "Top answers, most popular first, separated by commas",
+          "placeholder": "Sandwiches, blanket, chips, drinks, fruit"
+        }
+      ]
+    }
+  ],
+  "cast": false
+}

@@ -1,0 +1,20 @@
+{
+  "id": "battleship",
+  "name": "Battleship",
+  "version": "1.0.0",
+  "subtitle": "Hide your fleet, hunt theirs. First to sink all five ships wins.",
+  "description": "Play one on one or as two teams. Each team's phones show only their own fleet, so shuffle your ships until you like the layout and tap Ready. Teammates take turns calling shots on the other side's waters. The TV shows every hit, miss and sunk ship, but never where the ships are hiding.",
+  "tags": [
+    "Classic",
+    "Strategy",
+    "Teams"
+  ],
+  "players": {
+    "min": 2,
+    "max": 10,
+    "recommended": 2
+  },
+  "averageDurationMinutes": 20,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp"
+}

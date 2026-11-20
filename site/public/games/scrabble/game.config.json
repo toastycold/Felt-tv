@@ -1,0 +1,21 @@
+{
+  "id": "scrabble",
+  "name": "Scrabble",
+  "version": "1.0.0",
+  "subtitle": "The classic crossword game. Your tiles stay secret on your phone.",
+  "description": "Build words on the shared board using the seven letter tiles on your phone. Premium squares double or triple letters and words, and using all seven tiles earns a 50-point bonus. Every word is checked against a 270,000-word dictionary. 2\u20134 players; anyone else can watch.",
+  "tags": [
+    "Word",
+    "Classic",
+    "Strategy"
+  ],
+  "players": {
+    "min": 2,
+    "max": 4,
+    "recommended": 2
+  },
+  "averageDurationMinutes": 45,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": []
+}

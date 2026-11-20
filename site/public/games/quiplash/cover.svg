@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#1f4d3a"/>
+  <g transform="rotate(-6 120 140)">
+    <path d="M40 80 h150 a16 16 0 0 1 16 16 v70 a16 16 0 0 1 -16 16 h-100 l-30 28 v-28 h-20 a16 16 0 0 1 -16 -16 v-70 a16 16 0 0 1 16 -16z" fill="#f7f0dc"/>
+    <g fill="#cbbf9f"><rect x="56" y="104" width="120" height="12" rx="6"/><rect x="56" y="128" width="96" height="12" rx="6"/><rect x="56" y="152" width="70" height="12" rx="6"/></g>
+  </g>
+  <g transform="rotate(5 280 170)">
+    <path d="M210 110 h150 a16 16 0 0 1 16 16 v70 a16 16 0 0 1 -16 16 h-20 v28 l-30 -28 h-100 a16 16 0 0 1 -16 -16 v-70 a16 16 0 0 1 16 -16z" fill="#f2c230"/>
+    <g fill="#b88f17"><rect x="226" y="134" width="120" height="12" rx="6"/><rect x="226" y="158" width="84" height="12" rx="6"/><rect x="226" y="182" width="104" height="12" rx="6"/></g>
+  </g>
+  <text x="200" y="70" font-family="Arial, sans-serif" font-weight="800" font-size="34" fill="#d6453d" text-anchor="middle">VS</text>
+</svg>

@@ -1,0 +1,38 @@
+{
+  "id": "wavelength",
+  "name": "Wavelength",
+  "version": "1.0.0",
+  "subtitle": "Read your friend's mind with a dial and a single clue.",
+  "description": "Each round one player is the psychic. They see a hidden target on a spectrum like Cold to Hot and give a clue. Everyone else slides their phone's dial to where they think the target is. Your average guess is the team's guess. Land close for big points.",
+  "tags": [
+    "Party",
+    "Co-op",
+    "Guessing"
+  ],
+  "players": {
+    "min": 2,
+    "max": 12,
+    "recommended": 5
+  },
+  "averageDurationMinutes": 15,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": [
+    {
+      "kind": "spectrum",
+      "label": "A spectrum",
+      "fields": [
+        {
+          "key": "left",
+          "label": "Left end",
+          "placeholder": "Underrated"
+        },
+        {
+          "key": "right",
+          "label": "Right end",
+          "placeholder": "Overrated"
+        }
+      ]
+    }
+  ]
+}
