@@ -13,8 +13,8 @@ import android.webkit.WebViewClient;
 
 /** Full-screen window onto the Felt website. New games arrive with each firebase deploy. */
 public class MainActivity extends Activity {
-    private static final String HOME = "https://tv-games-c8269.web.app/";
-    private static final String HOST = "tv-games-c8269.web.app";
+    private static final String HOME = "https://felt-games.web.app/";
+    private static final String HOST = "felt-games.web.app";
     private WebView web;
 
     @Override
