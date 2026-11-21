@@ -1,6 +1,6 @@
 // TV shows everyone's board; each phone plays its own game.
 import { esc, nameOf, injectStyles } from '../../js/ui.js';
-import { Tetris, paint, bevel, W, H, COLORS } from './game.js';
+import { Tetris, paint, bevel, W, H, COLORS, PREVIEW } from './game.js';
 
 function styles() {
   injectStyles('tetris', `
@@ -30,11 +30,44 @@ function styles() {
     .tt-pad button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--card-edge, #cdbf98); }
     .tt-pad .wide { grid-column: span 2; background: var(--gold); }
     .tt-junk { color: #ffb37a; font-weight: 800; min-height: 1.2rem; }
+    .tt-phone #tt-hold { width: 3.6rem; height: 3.6rem; border-radius: 8px; }
+    .tt-phone #tt-hold.used { opacity: .45; }
+    .tt-pad .hold { grid-column: span 2; }
+    /* line-clear effects */
+    .tt-wrap { position: relative; display: inline-block; line-height: 0; }
+    .tt-pop { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap; line-height: 1;
+      font: 900 1.6rem var(--display); color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.45); animation: tt-pop 900ms ease-out forwards; z-index: 2; }
+    .tt-pop.n2 { color: #9be7ff; } .tt-pop.n3 { color: #ffd34d; font-size: 2rem; }
+    .tt-pop.n4 { font-size: 2.6rem; background: linear-gradient(90deg,#ff5b5b,#ffb43a,#ffe14d,#5be37a,#4ac8ff,#b46bff); -webkit-background-clip: text; background-clip: text;
+      color: transparent; text-shadow: none; filter: drop-shadow(0 3px 0 rgba(0,0,0,.5)); animation: tt-pop4 1400ms ease-out forwards; }
+    @keyframes tt-pop { 0% { transform: translate(-50%,-30%) scale(.4); opacity: 0 } 18% { transform: translate(-50%,-50%) scale(1.15); opacity: 1 }
+      70% { opacity: 1 } 100% { transform: translate(-50%,-110%) scale(1); opacity: 0 } }
+    @keyframes tt-pop4 { 0% { transform: translate(-50%,-50%) scale(.2) rotate(-12deg); opacity: 0 } 15% { transform: translate(-50%,-50%) scale(1.35) rotate(4deg); opacity: 1 }
+      30% { transform: translate(-50%,-50%) scale(1) rotate(-2deg) } 80% { opacity: 1 } 100% { transform: translate(-50%,-90%) scale(1.1); opacity: 0 } }
+    .tt-shake { animation: tt-shake 420ms ease-out; }
+    @keyframes tt-shake { 0%,100% { transform: none } 15% { transform: translate(-6px, 3px) rotate(-1deg) } 30% { transform: translate(6px,-3px) rotate(1deg) }
+      45% { transform: translate(-4px, 2px) } 60% { transform: translate(4px,-1px) } 80% { transform: translate(-2px, 1px) } }
+    .tt-glow { animation: tt-glow 1200ms ease-out; }
+    @keyframes tt-glow { 0% { box-shadow: 0 0 0 6px #fff, 0 0 40px 12px #ffe14d } 100% { box-shadow: 0 0 0 3px rgba(255,255,255,.1) } }
+    @media (prefers-reduced-motion: reduce) { .tt-shake, .tt-glow { animation: none } }
   `);
 }
 
+// ---------------- Line-clear celebration (TV and phone) ----------------
+const CLEAR_WORDS = ['', 'Single', 'Double!', 'Triple!', 'TETRIS!'];
+function celebrate(wrap, canvas, n) {
+  if (!wrap || !n) return;
+  const pop = document.createElement('div');
+  pop.className = `tt-pop n${n}`;
+  pop.textContent = CLEAR_WORDS[n];
+  wrap.appendChild(pop);
+  setTimeout(() => pop.remove(), n === 4 ? 1500 : 1000);
+  if (n >= 3) { canvas.classList.remove('tt-shake'); void canvas.offsetWidth; canvas.classList.add('tt-shake'); }
+  if (n === 4) { canvas.classList.remove('tt-glow'); void canvas.offsetWidth; canvas.classList.add('tt-glow'); }
+}
+
 // ---------------- TV ----------------
-let tvKey = '';
+let tvKey = '', tvFx = -1;
 export function renderBoard(el, { state: s, players, sendAction }) {
   styles();
   if (!s.boards || s.phase === 'lobby') { el.innerHTML = '<p class="center muted">Stacking blocks…</p>'; return; }
@@ -46,7 +79,7 @@ export function renderBoard(el, { state: s, players, sendAction }) {
     el.innerHTML = `<div class="tt" style="--bh:${bh}vh">
       <div class="tt-log" id="tt-log"></div>
       <div class="tt-boards">${ids.map((id) => `<div class="tt-p" data-id="${id}">
-        <div class="tt-place"></div><canvas width="${W * 12}" height="${H * 12}"></canvas>
+        <div class="tt-place"></div><div class="tt-wrap"><canvas width="${W * 12}" height="${H * 12}"></canvas></div>
         <div class="tt-name">${esc(nameOf(id, players))}</div><div class="tt-stat"></div></div>`).join('')}</div>
       <div class="tt-actions">${s.phase === 'over' ? '<button class="btn btn-primary btn-big" id="tt-again">Play again</button>' : ''}</div></div>`;
     el.querySelector('#tt-again')?.addEventListener('click', () => sendAction('game:again'));
@@ -60,6 +93,12 @@ export function renderBoard(el, { state: s, players, sendAction }) {
     paint(box.querySelector('canvas'), b.cells);
     box.querySelector('.tt-stat').textContent = `${b.score.toLocaleString()} pts · ${b.lines} lines`;
     box.querySelector('.tt-place').textContent = s.solo ? (dead ? 'Game over' : '') : s.places[id] === 1 ? '🏆 Winner' : dead ? `Out · #${s.places[id]}` : '';
+  }
+  if (tvFx === -1) tvFx = s.fx?.k || 0; // don't replay an old clear after a page reload
+  if (s.fx && s.fx.k !== tvFx) {
+    tvFx = s.fx.k;
+    const box = el.querySelector(`.tt-p[data-id="${s.fx.id}"]`);
+    if (box) celebrate(box.querySelector('.tt-wrap'), box.querySelector('canvas'), s.fx.n);
   }
   el.querySelector('#tt-log').textContent = s.log?.[0] || (s.phase === 'play' ? (s.solo ? 'Go for a high score!' : 'Clear 2+ lines at once to send junk rows!') : '');
   countdownOverlay(s);
@@ -79,6 +118,8 @@ function countdownOverlay(s) {
 }
 
 // ---------------- Phone ----------------
+let flashes = [];
+window.__ttGame = () => game; // handy for testing
 let game = null, gameRound = 0, applied = 0, raf = 0, lastDrop = 0, lastSnap = 0, dirty = false, send = null;
 let phoneKey = '';
 
@@ -115,12 +156,12 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
     stopGame();
     el.innerHTML = `<div class="tt tt-phone">
       <div class="tt-top"><span id="tt-score">0</span><span class="tt-junk" id="tt-junk"></span><span id="tt-lines">Lines 0</span></div>
-      <div class="tt-play"><canvas id="tt-me" width="${W * 24}" height="${H * 24}"></canvas>
-        <div class="tt-side">Next<canvas id="tt-next" width="96" height="96"></canvas><span id="tt-level">Level 1</span></div></div>
+      <div class="tt-play"><div class="tt-wrap" id="tt-wrap"><canvas id="tt-me" width="${W * 24}" height="${H * 24}"></canvas></div>
+        <div class="tt-side">Hold<canvas id="tt-hold" width="96" height="96"></canvas>Next<canvas id="tt-next" width="96" height="96"></canvas><span id="tt-level">Level 1</span></div></div>
       <div class="tt-pad">
         <button data-k="left" aria-label="Left">◀</button><button data-k="rotate" aria-label="Rotate">⟳</button>
         <button data-k="down" aria-label="Down">▼</button><button data-k="right" aria-label="Right">▶</button>
-        <button class="wide" data-k="drop">Drop ⤓</button><button class="wide" data-k="rotate">Rotate ⟳</button>
+        <button class="hold" data-k="hold">Hold</button><button class="wide" data-k="drop">Drop ⤓</button>
       </div></div>`;
     wirePad(el);
   }
@@ -132,7 +173,7 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
     applied = s.junk?.[me] || 0;
     game = new Tetris({
       onLock: () => { dirty = true; snap(true); },
-      onClear: (n) => send?.('game:cleared', { lines: n }),
+      onClear: (n, rows) => { flashes.push({ rows, n, t: performance.now() }); celebrate(el.querySelector('#tt-wrap'), el.querySelector('#tt-me'), n); send?.('game:cleared', { lines: n }); },
       onTopOut: () => { snap(true); send?.('game:topout', { score: game?.score || 0 }); },
     });
     lastDrop = performance.now();
@@ -178,14 +219,42 @@ function draw(el) {
   el.querySelector('#tt-score').textContent = game.score.toLocaleString();
   el.querySelector('#tt-lines').textContent = `Lines ${game.lines}`;
   el.querySelector('#tt-level').textContent = `Level ${game.level}`;
-  const n = el.querySelector('#tt-next');
-  const preview = { I: [[0, 1], [1, 1], [2, 1], [3, 1]], O: [[1, 0], [2, 0], [1, 1], [2, 1]], T: [[1, 0], [0, 1], [1, 1], [2, 1]], S: [[1, 0], [2, 0], [0, 1], [1, 1]], Z: [[0, 0], [1, 0], [1, 1], [2, 1]], J: [[0, 0], [0, 1], [1, 1], [2, 1]], L: [[2, 0], [0, 1], [1, 1], [2, 1]] }[game.next];
+  drawFlashes(c);
+  preview(el.querySelector('#tt-next'), game.next);
+  const h = el.querySelector('#tt-hold');
+  preview(h, game.held);
+  h.classList.toggle('used', !game.canHold);
+}
+
+/** Cleared rows burst white and shrink away; a Tetris flashes the whole board in rainbow colors. */
+function drawFlashes(c) {
+  const now = performance.now();
+  flashes = flashes.filter((f) => now - f.t < (f.n === 4 ? 650 : 380));
+  if (!flashes.length) return;
+  const ctx = c.getContext('2d');
+  const cw = c.width / W, ch = c.height / H;
+  for (const f of flashes) {
+    const k = (now - f.t) / (f.n === 4 ? 650 : 380);
+    if (f.n === 4) {
+      const hue = (k * 720) % 360;
+      ctx.fillStyle = `hsla(${hue}, 90%, 65%, ${0.35 * (1 - k)})`;
+      ctx.fillRect(0, 0, c.width, c.height);
+    }
+    for (const r of f.rows) {
+      const shrink = k * c.width / 2;
+      ctx.fillStyle = `rgba(255,255,255,${1 - k})`;
+      ctx.fillRect(shrink, r * ch - k * ch * 0.4, c.width - shrink * 2, ch * (1 + k * 0.8));
+    }
+  }
+}
+
+function preview(n, kind) {
   const ctx = n.getContext('2d');
   ctx.clearRect(0, 0, n.width, n.height);
   ctx.fillStyle = '#0f2f24'; ctx.fillRect(0, 0, n.width, n.height);
-  const sz = 20, ox = (n.width - 4 * sz) / 2 + (game.next === 'O' ? 0 : game.next === 'I' ? 0 : sz / 2), oy = (n.height - 2 * sz) / 2;
-  ctx.fillStyle = COLORS[game.next];
-  preview.forEach(([x, y]) => bevel(ctx, ox + x * sz, oy + y * sz, sz, sz, COLORS[game.next]));
+  if (!kind) return;
+  const sz = 20, ox = (n.width - 4 * sz) / 2 + (kind === 'O' || kind === 'I' ? 0 : sz / 2), oy = (n.height - 2 * sz) / 2;
+  PREVIEW[kind].forEach(([x, y]) => bevel(ctx, ox + x * sz, oy + y * sz, sz, sz, COLORS[kind]));
 }
 
 function act(k) {
@@ -193,6 +262,7 @@ function act(k) {
   if (k === 'left') game.move(-1);
   else if (k === 'right') game.move(1);
   else if (k === 'rotate') game.rotate();
+  else if (k === 'hold') { if (game.hold()) lastDrop = performance.now(); }
   else if (k === 'down') { if (game.step()) game.score += 1; lastDrop = performance.now(); }
   else if (k === 'drop') { game.hardDrop(); lastDrop = performance.now(); }
   dirty = true;
@@ -218,7 +288,7 @@ function wirePad(el) {
   if (!window.__ttKeys) {
     window.__ttKeys = true;
     window.addEventListener('keydown', (e) => {
-      const k = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', ' ': 'drop' }[e.key];
+      const k = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'down', ' ': 'drop', c: 'hold', C: 'hold', Shift: 'hold' }[e.key];
       if (k && game) { e.preventDefault(); act(k); }
     });
   }

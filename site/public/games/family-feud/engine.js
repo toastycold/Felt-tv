@@ -7,6 +7,9 @@ import { SURVEYS } from './surveys.js';
 const TEAMS = ['red', 'blue'];
 const other = (t) => (t === 'red' ? 'blue' : 'red');
 const MULTS = [1, 1, 2, 3];
+const FM_GOAL = 200;
+const FM_TIME = [20000, 25000];   // player 1, player 2 (ms)
+const FM_REVEAL_MS = 1100;        // pause between each answer and each point total being revealed
 
 // ---------- answer matching ----------
 const FILLER = new Set(['a', 'an', 'the', 'my', 'your', 'some', 'to', 'of', 'go']);
@@ -63,8 +66,9 @@ export default class FamilyFeudEngine extends BaseGameEngine {
       last: null,                      // { by, text, hit: bool, already: bool }
       roundWinner: '', winner: '', message: '', error: '',
       names: { red: 'Red family', blue: 'Blue family' },
+      fm: null,                        // Fast Money (see startFastMoney)
     };
-    this.secret = { deck: [], answers: [], faceoff: {} };
+    this.secret = { deck: [], answers: [], faceoff: {}, fm: [] };
   }
 
   tn(t) { return this.state.names?.[t] || (t === 'red' ? 'Red family' : 'Blue family'); }
@@ -205,6 +209,91 @@ export default class FamilyFeudEngine extends BaseGameEngine {
     }
   }
 
+  // ---------- Fast Money ----------
+  // Two players from the winning family answer the same 5 questions. Player 1 has 20 seconds while
+  // player 2 looks away; player 2 then has 25 seconds and can't repeat player 1's answers. 200 points wins.
+  startFastMoney() {
+    const s = this.state;
+    if (!this.secret.deck.length || this.secret.deck.length < 5) this.secret.deck = shuffle([...SURVEYS]);
+    const qs = this.secret.deck.splice(-5, 5);
+    this.secret.fm = qs.map((q) => q.answers);
+    s.phase = 'fm';
+    s.current = ''; s.waiting = []; s.strikes = 0;
+    s.fm = {
+      step: 'pick', team: s.winner, p1: '', p2: '',
+      qs: qs.map((q) => q.question || q.q),
+      a: [Array(5).fill(null), Array(5).fill(null)],   // a[turn][q] = { text, points }
+      order: [], endsAt: 0, shown: [0, 0], dup: null, total: 0, won: false,
+    };
+    const fam = s.teams[s.winner] || [];
+    if (fam.length === 1) { s.fm.p1 = s.fm.p2 = fam[0]; s.fm.step = 'ready1'; }
+    s.waiting = s.fm.step === 'pick' ? [...fam] : [s.fm.p1];
+  }
+
+  fmTurn() { return this.state.fm.step.endsWith('2') ? 1 : 0; }
+
+  fmStart() {
+    const s = this.state;
+    const t = this.fmTurn();
+    s.fm.step = `play${t + 1}`;
+    s.fm.order = [0, 1, 2, 3, 4];
+    s.fm.endsAt = Date.now() + FM_TIME[t];
+    s.fm.dup = null;
+    s.current = t ? s.fm.p2 : s.fm.p1;
+    s.waiting = [];
+    clearTimeout(this.fmTimer);
+    this.fmTimer = setTimeout(() => { if (s.fm?.step === `play${t + 1}`) { this.fmReveal(); this.sync(); } }, FM_TIME[t] + 600);
+  }
+
+  fmAnswer(qi, text) {
+    const s = this.state;
+    const t = this.fmTurn();
+    const fm = s.fm;
+    if (fm.order[0] !== qi) return;
+    if (!text) { fm.order.push(fm.order.shift()); fm.dup = null; return; }   // pass: come back to it later
+    const answers = this.secret.fm[qi];
+    const i = matchAnswer(text, answers);
+    if (t === 1 && i >= 0 && fm.a[0][qi]?.idx === i) {   // same answer as player 1
+      fm.dup = { q: qi, text, k: (fm.dup?.k || 0) + 1 };
+      return;
+    }
+    fm.dup = null;
+    fm.a[t][qi] = { text, points: i >= 0 ? answers[i].points : 0, idx: i };
+    fm.order.shift();
+    if (!fm.order.length) this.fmReveal();
+  }
+
+  fmReveal() {
+    const s = this.state;
+    const t = this.fmTurn();
+    const fm = s.fm;
+    clearTimeout(this.fmTimer);
+    fm.a[t] = fm.a[t].map((x) => x || { text: '', points: 0, idx: -1 });
+    fm.step = `reveal${t + 1}`;
+    fm.order = []; fm.dup = null;
+    s.current = '';
+    const tick = () => {
+      if (!s.fm || s.fm.step !== `reveal${t + 1}`) return;
+      fm.shown[t] += 1;
+      const i = Math.ceil(fm.shown[t] / 2) - 1;
+      if (fm.shown[t] % 2 === 0) fm.total += fm.a[t][i].points;
+      if (fm.shown[t] >= 10) {
+        if (t === 0) {
+          fm.step = fm.total >= FM_GOAL ? 'done' : 'ready2';
+          fm.won = fm.total >= FM_GOAL;
+          s.waiting = fm.step === 'ready2' ? [fm.p2] : [];
+        } else { fm.step = 'done'; fm.won = fm.total >= FM_GOAL; }
+        this.sync();
+        return;
+      }
+      this.sync();
+      this.fmTimer = setTimeout(tick, FM_REVEAL_MS);
+    };
+    this.fmTimer = setTimeout(tick, FM_REVEAL_MS);
+  }
+
+  destroy() { clearTimeout(this.fmTimer); super.destroy?.(); }
+
   processAction(type, p, meta) {
     const s = this.state;
     const me = meta.playerId;
@@ -291,8 +380,43 @@ export default class FamilyFeudEngine extends BaseGameEngine {
         this.startRound();
         break;
       case 'game:new-game':
-        if (s.phase !== 'over' || !host) return;
-        s.phase = 'setup';
+        if (!(s.phase === 'over' || (s.phase === 'fm' && s.fm?.step === 'done')) || !host) return;
+        clearTimeout(this.fmTimer);
+        s.phase = 'setup'; s.fm = null;
+        break;
+
+      // Fast Money
+      case 'game:fast-money':
+        if (s.phase !== 'over' || s.winner === 'tie' || !host) return;
+        this.startFastMoney();
+        break;
+      case 'game:fm-join': {
+        const fm = s.fm;
+        if (s.phase !== 'fm' || fm.step !== 'pick' || this.teamOf(me) !== fm.team) return;
+        if (!fm.p1) fm.p1 = me;
+        else if (fm.p1 !== me && !fm.p2) fm.p2 = me;
+        else return;
+        if (fm.p1 && fm.p2) { fm.step = 'ready1'; s.waiting = [fm.p1]; } else s.waiting = s.waiting.filter((x) => x !== me);
+        break;
+      }
+      case 'game:fm-start': {
+        const fm = s.fm;
+        if (s.phase !== 'fm' || !['ready1', 'ready2'].includes(fm.step)) return;
+        const who = fm.step === 'ready1' ? fm.p1 : fm.p2;
+        if (me !== who && !host) return;
+        this.fmStart();
+        break;
+      }
+      case 'game:fm-answer': {
+        const fm = s.fm;
+        if (s.phase !== 'fm' || !['play1', 'play2'].includes(fm.step) || me !== s.current) return;
+        if (Date.now() > fm.endsAt + 1500) return;
+        this.fmAnswer(p.q | 0, text);
+        break;
+      }
+      case 'game:fm-stop':   // TV/VIP: end the turn early (the player is stuck)
+        if (s.phase !== 'fm' || !['play1', 'play2'].includes(s.fm.step) || !host) return;
+        this.fmReveal();
         break;
       default:
         return;

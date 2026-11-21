@@ -22,6 +22,7 @@ export class Tetris {
     this.over = false;
     this.onLock = onLock || (() => {}); this.onClear = onClear || (() => {}); this.onTopOut = onTopOut || (() => {});
     this.next = this.draw();
+    this.held = ''; this.canHold = true;
     this.spawn();
   }
 
@@ -33,9 +34,8 @@ export class Tetris {
     return this.bag.pop();
   }
 
-  spawn() {
-    const kind = this.next;
-    this.next = this.draw();
+  spawn(kind) {
+    if (!kind) { kind = this.next; this.next = this.draw(); }
     this.piece = { kind, blocks: SHAPES[kind].map((b) => [...b]), x: 3, y: kind === 'I' ? -1 : 0 };
     if (!this.fits(this.piece.blocks, this.piece.x, this.piece.y)) { this.over = true; this.onTopOut(); }
   }
@@ -45,6 +45,17 @@ export class Tetris {
       const gx = px + x, gy = py + y;
       return gx >= 0 && gx < W && gy < H && (gy < 0 || !this.grid[gy][gx]);
     });
+  }
+
+  /** Bank the falling piece (or swap it with the banked one). Once per piece, like the real game. */
+  hold() {
+    if (this.over || !this.canHold) return false;
+    const cur = this.piece.kind;
+    const swap = this.held;
+    this.held = cur;
+    this.canHold = false;
+    this.spawn(swap || undefined);
+    return true;
   }
 
   move(dx) { if (!this.over && this.fits(this.piece.blocks, this.piece.x + dx, this.piece.y)) { this.piece.x += dx; return true; } return false; }
@@ -91,8 +102,9 @@ export class Tetris {
       this.lines += full.length;
       this.score += LINE_PTS[full.length] * this.level;
       this.level = 1 + Math.floor(this.lines / 10);
-      this.onClear(full.length);
+      this.onClear(full.length, full);
     }
+    this.canHold = true;
     this.spawn();
     this.onLock();
   }
@@ -156,3 +168,6 @@ export function paint(canvas, cells, { ghost = null, dim = false } = {}) {
   }
   if (dim) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
 }
+
+/** Small preview shapes for the Next and Hold boxes. */
+export const PREVIEW = SHAPES;

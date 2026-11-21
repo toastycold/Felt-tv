@@ -9,7 +9,7 @@ const PHRASES = ['A very sleepy bear', 'Grandma at the buffet', 'Too many cooks'
 const AVOID = /leave|quit|end game|change my guess|never mind|i'll narrate|suggest|log out|sign out/i;
 
 let lastKey = '', repeats = 0;           // the same button pressed over and over means it isn't working
-const keyOf = (el) => el.id || (el.textContent || '').trim().slice(0, 30);
+const keyOf = (el) => el.id || (el.textContent || '').trim().slice(0, 30) || Object.entries(el.dataset || {}).map((x) => x.join('=')).join(',');
 function press(el) {
   const k = keyOf(el);
   repeats = k === lastKey ? repeats + 1 : 0;

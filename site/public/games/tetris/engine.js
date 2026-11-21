@@ -13,6 +13,7 @@ export default class TetrisEngine extends BaseGameEngine {
       boards: {},       // id -> { cells: 200-char string, score, lines, level }
       junk: {},         // id -> total junk rows sent to them so far (phones apply the difference)
       dead: [], places: {}, winner: '', solo: false, log: [],
+      fx: null,         // last line clear { id, n, k } so the TV can flash that board
     };
   }
 
@@ -62,9 +63,10 @@ export default class TetrisEngine extends BaseGameEngine {
       case 'game:cleared': {
         if (s.phase !== 'play' || !s.boards[me]) return;
         const n = Math.min(4, Math.max(0, p.lines | 0));
+        if (n) s.fx = { id: me, n, k: (s.fx?.k || 0) + 1 };
         const send = GARBAGE[n];
         const targets = this.alive().filter((id) => id !== me);
-        if (!send || !targets.length) return;
+        if (!send || !targets.length) break;
         const to = targets[Math.floor(Math.random() * targets.length)];
         s.junk[to] = (s.junk[to] || 0) + send;
         const name = (id) => this.players.find((x) => x.id === id)?.name || 'someone';

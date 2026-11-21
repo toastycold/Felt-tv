@@ -9,8 +9,8 @@ function styles() {
     .db { text-align: center; }
     .db svg { display: block; margin: .4rem auto; width: min(100%, 62vh); height: auto; touch-action: manipulation; }
     .db-phone svg { width: 100%; }
-    .db-edge-hit { stroke: transparent; stroke-width: 26; stroke-linecap: round; cursor: pointer; }
-    .db-edge-hit:hover + .db-edge-ghost, .db-edge-ghost.pick { stroke: rgba(242,194,48,.9); }
+    .db-edge-hit { stroke: transparent; stroke-width: 36; stroke-linecap: round; cursor: pointer; }
+    @media (hover: hover) { .db-edge-hit:hover + .db-edge-ghost { stroke: rgba(242,194,48,.9); } }
     .db-edge-ghost { stroke: rgba(255,255,255,.08); stroke-width: 8; stroke-linecap: round; pointer-events: none; }
     .db-last { filter: drop-shadow(0 0 6px #fff); }
     .db-scores { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem .8rem; margin: .3rem 0; }
@@ -30,7 +30,7 @@ function styles() {
   `);
 }
 
-function svgHtml(s, players, { clickable = false, pick = null } = {}) {
+function svgHtml(s, players, { clickable = false } = {}) {
   const { R, C } = s;
   const w = C * GAP + 2 * M, hgt = R * GAP + 2 * M;
   const X = (c) => M + c * GAP, Y = (r) => M + r * GAP;
@@ -48,8 +48,7 @@ function svgHtml(s, players, { clickable = false, pick = null } = {}) {
     if (owner >= 0) {
       lines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${COLORS[owner]}" stroke-width="8" stroke-linecap="round" class="${isLast ? 'db-last' : ''}"/>`;
     } else if (clickable) {
-      const picked = pick && pick.kind === kind && pick.i === i;
-      hits += `<line class="db-edge-hit" data-kind="${kind}" data-i="${i}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line class="db-edge-ghost ${picked ? 'pick' : ''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+      hits += `<line class="db-edge-hit" data-kind="${kind}" data-i="${i}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line class="db-edge-ghost" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
     } else {
       lines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,.07)" stroke-width="6" stroke-linecap="round"/>`;
     }
@@ -87,9 +86,9 @@ export function renderBoard(el, { state: s, players, sendAction }) {
   el.querySelector('#db-skip')?.addEventListener('click', () => sendAction('game:skip'));
 }
 
-let pick = null;
 const ZOOMS = [1, 1.5, 2, 2.75];
 let zoom = 0;
+let sent = '';   // the line we just played, until the TV confirms it (stops double taps)
 
 export function renderPlayer(el, { state: s, me, players, sendAction }) {
   styles();
@@ -97,49 +96,59 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
   const mySeat = s.seats.indexOf(me);
   const myTurn = s.phase === 'play' && s.seats[s.turn] === me;
   const isVip = players[0]?.id === me;
+  const big = s.R >= 7;            // only the biggest boards need zooming
+  if (!big) zoom = 0;
+  if (sent && (!myTurn || s[sent.split(':')[0]]?.[+sent.split(':')[1]] >= 0)) sent = '';
   const oldWrap = el.querySelector('.db-zoomwrap');
   const scroll = oldWrap ? [oldWrap.scrollLeft, oldWrap.scrollTop] : null;
-  if (!myTurn) pick = null;
-  if (pick && s[pick.kind]?.[pick.i] >= 0) pick = null;
   let headline;
   if (s.phase === 'over') headline = statusText(s, players);
   else if (mySeat < 0) headline = 'This game already started. Watch the TV!';
-  else if (myTurn) headline = pick ? 'Tap Draw to lock it in' : 'Your turn! Tap a line.';
+  else if (myTurn) headline = 'Your turn! Tap a line.';
   else headline = statusText(s, players);
   el.innerHTML = `<div class="db db-phone">
     ${mySeat >= 0 ? `<p><span class="db-chip"><i style="background:${COLORS[mySeat]}"></i>You · <b>${s.scores[me] || 0}</b></span></p>` : ''}
     <h2>${headline}</h2>
-    <div class="db-zoom"><button id="db-out" aria-label="Zoom out" ${zoom === 0 ? 'disabled' : ''}>−</button>
-      <span>Zoom ${ZOOMS[zoom]}×</span><button id="db-in" aria-label="Zoom in" ${zoom === ZOOMS.length - 1 ? 'disabled' : ''}>+</button></div>
-    <div class="db-zoomwrap" style="--z:${ZOOMS[zoom]}">${svgHtml(s, players, { clickable: myTurn, pick })}</div>
+    ${big ? `<div class="db-zoom"><button id="db-out" aria-label="Zoom out" ${zoom === 0 ? 'disabled' : ''}>−</button>
+      <span>Zoom ${ZOOMS[zoom]}×</span><button id="db-in" aria-label="Zoom in" ${zoom === ZOOMS.length - 1 ? 'disabled' : ''}>+</button></div>` : ''}
+    <div class="db-zoomwrap" style="--z:${ZOOMS[zoom]}">${svgHtml(s, players, { clickable: myTurn && !sent })}</div>
     <div class="db-actions">
-      ${myTurn ? `<button class="btn btn-primary btn-big" id="db-draw" ${pick ? '' : 'disabled'}>Draw line</button>` : ''}
       ${s.phase === 'over' && isVip ? '<button class="btn btn-primary btn-big" id="db-again">Play again</button>' : ''}
     </div>
     ${scoresHtml(s, players)}</div>`;
   const wrap = el.querySelector('.db-zoomwrap');
   if (scroll) [wrap.scrollLeft, wrap.scrollTop] = scroll;
-  const setZoom = (z) => {
-    const fx = (wrap.scrollLeft + wrap.clientWidth / 2) / wrap.scrollWidth, fy = (wrap.scrollTop + wrap.clientHeight / 2) / wrap.scrollHeight;
-    zoom = z;
-    wrap.style.setProperty('--z', ZOOMS[zoom]);
-    // Keep the same spot in the middle of the view.
-    wrap.scrollLeft = fx * wrap.scrollWidth - wrap.clientWidth / 2;
-    wrap.scrollTop = fy * wrap.scrollHeight - wrap.clientHeight / 2;
-    el.querySelector('.db-zoom span').textContent = `Zoom ${ZOOMS[zoom]}×`;
-    el.querySelector('#db-out').disabled = zoom === 0;
-    el.querySelector('#db-in').disabled = zoom === ZOOMS.length - 1;
-  };
-  el.querySelector('#db-in').onclick = () => zoom < ZOOMS.length - 1 && setZoom(zoom + 1);
-  el.querySelector('#db-out').onclick = () => zoom > 0 && setZoom(zoom - 1);
-  el.querySelectorAll('.db-edge-hit').forEach((ln) => ln.addEventListener('click', () => {
-    pick = { kind: ln.dataset.kind, i: Number(ln.dataset.i) };
-    renderPlayer(el, { state: s, me, players, sendAction });
-  }));
-  el.querySelector('#db-draw')?.addEventListener('click', () => {
-    if (!pick) return;
-    sendAction('game:line', pick);
-    pick = null;
+  if (big) {
+    const setZoom = (z) => {
+      const fx = (wrap.scrollLeft + wrap.clientWidth / 2) / wrap.scrollWidth, fy = (wrap.scrollTop + wrap.clientHeight / 2) / wrap.scrollHeight;
+      zoom = z;
+      wrap.style.setProperty('--z', ZOOMS[zoom]);
+      // Keep the same spot in the middle of the view.
+      wrap.scrollLeft = fx * wrap.scrollWidth - wrap.clientWidth / 2;
+      wrap.scrollTop = fy * wrap.scrollHeight - wrap.clientHeight / 2;
+      el.querySelector('.db-zoom span').textContent = `Zoom ${ZOOMS[zoom]}×`;
+      el.querySelector('#db-out').disabled = zoom === 0;
+      el.querySelector('#db-in').disabled = zoom === ZOOMS.length - 1;
+    };
+    el.querySelector('#db-in').onclick = () => zoom < ZOOMS.length - 1 && setZoom(zoom + 1);
+    el.querySelector('#db-out').onclick = () => zoom > 0 && setZoom(zoom - 1);
+  }
+  // One tap plays the line. Draw it right away in my color so it feels instant, then tell the TV.
+  const svg = wrap.querySelector('svg');
+  svg?.addEventListener('click', (e) => {
+    const ln = e.target.closest?.('.db-edge-hit');
+    if (!ln || sent || !myTurn) return;
+    const kind = ln.dataset.kind, i = Number(ln.dataset.i);
+    sent = `${kind}:${i}`;
+    const drawn = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    for (const a of ['x1', 'y1', 'x2', 'y2']) drawn.setAttribute(a, ln.getAttribute(a));
+    Object.entries({ stroke: COLORS[mySeat], 'stroke-width': 8, 'stroke-linecap': 'round', class: 'db-last' }).forEach(([k, v]) => drawn.setAttribute(k, v));
+    svg.insertBefore(drawn, svg.querySelector('circle'));
+    svg.querySelectorAll('.db-edge-hit').forEach((x) => x.remove());   // no more taps until the TV answers
+    el.querySelector('h2').textContent = 'Nice!';
+    sendAction('game:line', { kind, i });
+    const mine = sent;
+    setTimeout(() => { if (sent === mine) { sent = ''; renderPlayer(el, { state: s, me, players, sendAction }); } }, 4000);   // never got through
   });
   el.querySelector('#db-again')?.addEventListener('click', () => sendAction('game:again'));
 }

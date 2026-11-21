@@ -74,10 +74,19 @@ async function createRoom(gameId, hostUid) {
     try {
       // Security rules only allow writing meta if the room doesn't exist yet (or is ours).
       const existing = (await get(ref(db, `rooms/${code}/meta`))).val();
-      if (existing && existing.hostUid !== hostUid) continue;
+      if (existing && existing.hostUid !== hostUid) {
+        // An abandoned room from yesterday or earlier can be cleared out and its code reused.
+        if (!(existing.createdAt < Date.now() - 25 * 60 * 60 * 1000)) continue;
+        await remove(ref(db, `rooms/${code}`));
+      }
       await set(ref(db, `rooms/${code}/meta`), {
         gameId, hostUid, status: 'lobby', hostConnected: true, createdAt: serverTimestamp(),
       });
+      try {
+        const cleanup = await import('./cleanup.js');
+        await cleanup.indexRoom(code);
+        cleanup.cleanOldRooms();   // tidy up yesterday's rooms in the background
+      } catch (err) { console.warn('[cleanup]', err.message); }
       return code;
     } catch (err) {
       console.warn('Room code taken, retrying', code, err.message);

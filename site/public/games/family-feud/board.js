@@ -2,7 +2,7 @@
 import { esc, nameOf } from '../../js/ui.js';
 import { spriteHtml, poseFor } from '../../js/people.js';
 import { feudStyles } from './styles.js';
-import { teamName, boardHtml, strikesHtml, lastHtml } from './shared.js';
+import { teamName, boardHtml, strikesHtml, lastHtml, fmBoardHtml, runFmClock } from './shared.js';
 
 let seenStrikes = 0;
 
@@ -27,6 +27,10 @@ function bigStrike(count) {
   o.innerHTML = Array.from({ length: count }, () => '<span>✕</span>').join('');
   document.body.appendChild(o);
   setTimeout(() => o.remove(), 1600);
+  buzz();
+}
+
+export function buzz() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const gain = ctx.createGain();
@@ -63,6 +67,9 @@ export function renderBoard(el, { state: s, players, sendAction }) {
     el.querySelector('#ff-begin').onclick = () => sendAction('game:begin');
     return;
   }
+
+  if (s.phase === 'fm') { renderFastMoney(el, s, players, sendAction); return; }
+  runFmClock(s);
 
   const fresh = s.strikes > seenStrikes;
   seenStrikes = s.strikes;
@@ -105,7 +112,8 @@ export function renderBoard(el, { state: s, players, sendAction }) {
         ${s.phase === 'play' ? '<button class="btn btn-ghost" id="ff-time">Time\'s up (strike)</button>' : ''}
         ${s.phase === 'play' && s.strikes ? '<button class="btn btn-ghost" id="ff-undo">Take back a strike</button>' : ''}
         ${s.phase === 'reveal' ? '<button class="btn btn-primary btn-big" id="ff-next">Next round</button>' : ''}
-        ${over ? '<button class="btn btn-primary btn-big" id="ff-new">Play again</button>' : ''}
+        ${over && s.winner !== 'tie' ? '<button class="btn btn-primary btn-big" id="ff-fm">Play Fast Money!</button>' : ''}
+        ${over ? `<button class="btn ${s.winner === 'tie' ? 'btn-primary btn-big' : 'btn-ghost'}" id="ff-new">Play again</button>` : ''}
       </div>
     </div>`;
 
@@ -115,5 +123,59 @@ export function renderBoard(el, { state: s, players, sendAction }) {
   on('#ff-time', 'game:time-up');
   on('#ff-undo', 'game:undo-strike');
   on('#ff-next', 'game:next-round');
+  on('#ff-new', 'game:new-game');
+  on('#ff-fm', 'game:fast-money');
+}
+
+let seenDup = 0;
+function renderFastMoney(el, s, players, sendAction) {
+  const fm = s.fm;
+  const name = (id) => esc(nameOf(id, players));
+  const fam = teamName(s, fm.team);
+  const solo = fm.p1 === fm.p2;
+  if (fm.dup && fm.dup.k !== seenDup) { seenDup = fm.dup.k; buzz(); }
+  if (!fm.dup) seenDup = 0;
+  let top = '', actions = '';
+  switch (fm.step) {
+    case 'pick':
+      top = `<p class="fm-q">${fam}, pick your two Fast Money players. Tap "I'll play" on your phones.</p>`;
+      break;
+    case 'ready1':
+      top = `<p class="fm-q">${name(fm.p1)} goes first with 20 seconds.</p>
+        ${solo ? '' : `<p class="fm-look">${name(fm.p2)}, turn away from the TV and cover your ears!</p>`}`;
+      actions = '<button class="btn btn-primary btn-big" id="fm-start">Start the clock</button>';
+      break;
+    case 'ready2':
+      top = `<p class="fm-q">${solo ? `${name(fm.p2)}, your second try` : `${name(fm.p2)}, come on back`}! You have 25 seconds. Don't repeat ${solo ? 'your first' : `${name(fm.p1)}'s`} answers.</p>`;
+      actions = '<button class="btn btn-primary btn-big" id="fm-start">Start the clock</button>';
+      break;
+    case 'play1': case 'play2': {
+      const qi = fm.order[0];
+      top = `<div class="center"><span class="fm-clock" data-fm-clock></span></div>
+        <p class="fm-q">${esc(fm.qs[qi] ?? '')}</p>
+        ${fm.step === 'play1' && !solo ? `<p class="fm-look">${name(fm.p2)}, no peeking!</p>` : ''}
+        ${fm.dup ? `<p class="center fm-dup">Duplicate! "${esc(fm.dup.text)}" was already said. Try again!</p>` : ''}`;
+      actions = '<button class="btn btn-ghost" id="fm-stop">End turn now</button>';
+      break;
+    }
+    case 'reveal1': case 'reveal2':
+      top = '<p class="fm-q">Survey says…</p>';
+      break;
+    case 'done':
+      top = fm.won
+        ? `<p class="fm-big win">🎉 ${fam} won Fast Money! 🎉</p>`
+        : `<p class="fm-big lose">So close! ${fm.total} points, ${200 - fm.total} short.</p>`;
+      actions = '<button class="btn btn-primary btn-big" id="ff-new">Play again</button>';
+      break;
+  }
+  el.innerHTML = `<div class="ff">
+    <div class="fm-title">FAST MONEY</div>
+    ${top}
+    ${fmBoardHtml(s, players)}
+    <div class="ff-actions">${actions}</div></div>`;
+  runFmClock(s);
+  const on = (id, action) => el.querySelector(id)?.addEventListener('click', () => sendAction(action));
+  on('#fm-start', 'game:fm-start');
+  on('#fm-stop', 'game:fm-stop');
   on('#ff-new', 'game:new-game');
 }

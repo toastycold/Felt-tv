@@ -3,7 +3,10 @@
     ".read": false,
     ".write": false,
     "rooms": {
+      ".read": "auth != null && auth.token.email === 'ouderkirkh2point0@gmail.com' && auth.token.email_verified === true",
+      ".indexOn": ["meta/createdAt"],
       "$code": {
+        ".write": "auth != null && !newData.exists() && data.child('meta/createdAt').isNumber() && data.child('meta/createdAt').val() < now - 86400000",
         "meta": {
           ".read": "auth != null",
           ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid)",
@@ -67,6 +70,13 @@
             ".validate": "newData.val() === now"
           }
         }
+      }
+    },
+    "roomIndex": {
+      ".read": "auth != null && query.orderByValue === true && query.endAt != null && query.endAt < now - 86400000 && query.limitToFirst <= 50",
+      ".indexOn": ".value",
+      "$code": {
+        ".write": "auth != null && ((newData.val() === now && root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid) || (!newData.exists() && data.isNumber() && data.val() < now - 86400000))"
       }
     },
     "suggestRate": {

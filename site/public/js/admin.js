@@ -25,6 +25,7 @@ async function main() {
     if (user.email !== ADMIN_EMAIL) return showSignIn(`${user.email} isn't the admin account.`);
     unsub.push(onValue(ref(db, 'suggestions'), (snap) => { pending = snap.val() || {}; render(); }, (err) => showSignIn(err.message)));
     unsub.push(onValue(ref(db, 'content'), (snap) => { approved = snap.val() || {}; render(); }));
+    import('./cleanup.js').then((c) => c.sweepAllOldRooms()).then((n) => n && console.info(`[cleanup] removed ${n} old rooms`)).catch((err) => console.warn('[cleanup]', err.message));
   });
   $('#signout').onclick = (e) => { e.preventDefault(); signOutAdmin(); };
 }

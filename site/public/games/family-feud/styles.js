@@ -69,6 +69,33 @@ export function feudStyles() {
     .ff-phone .ff-board { grid-template-columns: 1fr; grid-auto-flow: row; padding: .5rem; gap: .35rem; border-width: 3px; }
     .ff-phone .ff-tile { min-height: 2.4rem; font-size: 1rem; padding: .2rem .7rem; }
     .ff-phone .ff-x { font-size: 2.2rem; }
+    /* Fast Money */
+    .fm-title { text-align: center; font: 900 clamp(2rem, 7vh, 3.4rem)/1 var(--display); color: var(--gold); letter-spacing: .02em;
+      text-shadow: 0 .06em 0 rgba(0,0,0,.35); margin: .2rem 0 .5rem; }
+    .fm-board { max-width: 60rem; margin: 0 auto; background: #0d1f4d; border: 4px solid var(--gold); border-radius: 18px; padding: clamp(.4rem, 1.5vh, .9rem); }
+    .fm-names { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; text-align: center; font: 800 clamp(.95rem, 2.6vh, 1.2rem) var(--display); color: #cfe0ff; margin-bottom: .3rem; }
+    .fm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(.3rem, 1vh, .55rem) .6rem; }
+    .fm-cell { display: flex; align-items: center; justify-content: space-between; gap: .4rem; min-height: clamp(2.1rem, 6.5vh, 3.2rem); padding: .2rem .4rem .2rem .9rem;
+      background: linear-gradient(#2148a8, #173a8c); border-radius: 10px; color: #fff; font: 800 clamp(1rem, min(2vw, 3.8vh), 1.5rem) var(--display); text-transform: uppercase; }
+    .fm-cell .pts { min-width: 2.8rem; text-align: center; background: #0d1f4d; color: var(--gold); border-radius: 8px; padding: .1rem .3rem; min-height: 1.4em; }
+    .fm-cell.shown { animation: ff-flip .4s ease; }
+    .fm-cell.zero .pts { color: #ff7a70; }
+    .fm-cell.covered { background: repeating-linear-gradient(45deg, #13306f 0 10px, #0f2860 10px 20px); }
+    .fm-total { text-align: right; font: 800 clamp(1.2rem, 4vh, 1.8rem) var(--display); color: #fff; margin-top: .45rem; padding-right: .3rem; }
+    .fm-total b { color: var(--gold); font-size: 1.4em; margin-left: .4rem; } .fm-total small { opacity: .7; margin-left: .3rem; }
+    .fm-total.win b { color: #8be38b; }
+    .fm-clock { display: inline-grid; place-items: center; min-width: 2.2em; padding: .05em .3em; border-radius: 14px; background: #0d1f4d; color: var(--gold);
+      border: 3px solid var(--gold); font: 900 clamp(2.4rem, 9vh, 4rem)/1.1 var(--display); }
+    .fm-clock.low { color: #ff6b5e; border-color: #ff6b5e; }
+    .fm-q { text-align: center; font: 800 clamp(1.2rem, 4vh, 1.9rem)/1.2 var(--display); margin: .4rem auto; max-width: 32ch; }
+    .fm-look { text-align: center; font: 900 clamp(1.4rem, 5vh, 2.4rem)/1.2 var(--display); color: #ffb37a; margin: .4rem 0; }
+    .fm-big { text-align: center; font: 900 clamp(2rem, 8vh, 3.6rem)/1.1 var(--display); margin: .5rem 0; }
+    .fm-big.win { color: #8be38b; } .fm-big.lose { color: #ff9a92; }
+    .fm-dup { color: #ff6b5e; font: 900 1.4rem var(--display); }
+    .ff-phone .fm-board { border-width: 3px; padding: .4rem; }
+    .ff-phone .fm-cell { font-size: .9rem; min-height: 2.2rem; padding-left: .5rem; }
+    .ff-phone .fm-pass { margin-top: .2rem; }
+    .ff-phone .fm-cover { padding: 2.5rem 1rem; border-radius: 18px; background: #0d1f4d; color: #ffb37a; font: 900 1.7rem/1.25 var(--display); margin-top: 1rem; }
     
   `);
 }

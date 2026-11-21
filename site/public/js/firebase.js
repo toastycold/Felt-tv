@@ -22,6 +22,11 @@ import {
   onChildAdded,
   onDisconnect,
   serverTimestamp,
+  query,
+  orderByValue,
+  orderByChild,
+  endAt,
+  limitToFirst,
 } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-database.js';
 import { firebaseConfig, ADMIN_EMAIL } from './firebase-config.js';
 
@@ -38,6 +43,7 @@ export const auth = initializeAuth(app, { persistence: isBot ? inMemoryPersisten
 export const db = getDatabase(app);
 
 export { ref, get, set, update, remove, push, onValue, onChildAdded, onDisconnect, serverTimestamp };
+export { query, orderByValue, orderByChild, endAt, limitToFirst };
 export { ADMIN_EMAIL };
 
 /** Admin sign-in with Google (admin.html only). Resolves with the signed-in user. */
