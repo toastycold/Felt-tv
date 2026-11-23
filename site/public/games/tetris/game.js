@@ -97,12 +97,13 @@ export class Tetris {
     if (above) { this.over = true; this.onTopOut(); return; }
     const full = this.grid.map((row, i) => (row.every(Boolean) ? i : -1)).filter((i) => i >= 0);
     if (full.length) {
+      const cleared = full.map((i) => [...this.grid[i]]);   // colors, for the explosion effect
       this.grid = this.grid.filter((_, i) => !full.includes(i));
       while (this.grid.length < H) this.grid.unshift(Array(W).fill(''));
       this.lines += full.length;
       this.score += LINE_PTS[full.length] * this.level;
       this.level = 1 + Math.floor(this.lines / 10);
-      this.onClear(full.length, full);
+      this.onClear(full.length, full, cleared);
     }
     this.canHold = true;
     this.spawn();

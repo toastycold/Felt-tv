@@ -1,6 +1,6 @@
 // Phone view for Scattergories.
 import { esc, setHtmlKeepingInputs, countdown, scoreboard } from '../../js/ui.js';
-import { scatterStyles, answerCards } from './board.js';
+import { scatterStyles, answerCards, dots } from './board.js';
 import { PER_ROUND } from './engine.js';
 
 let saveTimer = null;
@@ -22,15 +22,17 @@ export function renderPlayer(el, { state: s, priv = {}, me, players, sendAction 
       html = `<div class="center"><div class="display-l">Done!</div><p class="muted">Waiting for the timer or the others.</p>
         <button class="btn btn-ghost" id="sg-edit">Keep editing</button></div>`;
     } else {
-      html = `<div class="row-center" style="justify-content:space-between"><div class="display-l" style="margin:0">Letter ${s.letter}</div>${countdown(s.deadline)}</div>
-        <div class="sg-phone-list">${s.categories.map((c, k) => `
-          <label>${k + 1}. ${esc(c)}<input id="sg-${k}" maxlength="40" autocomplete="off" autocapitalize="words" ${firstRender ? `value="${esc(saved[k] || '')}" data-reset="1"` : ''}></label>`).join('')}
-        </div>
-        <button class="btn btn-primary btn-big" id="sg-done" style="width:100%;margin-top:1rem">I'm done</button>`;
+      html = `<div class="sg-phone">
+        <div class="sg-phone-top"><div class="sg-letter sm">${s.letter}</div><p>Everything starts with ${s.letter}</p>${countdown(s.deadline)}</div>
+        <div class="sg-pad"><ol class="sg-rows sg-phone-list">${s.categories.map((c, k) => `
+          <li class="sg-row"><span class="sg-num">${k + 1}</span><label class="sg-field"><span>${esc(c)}</span>
+            <input id="sg-${k}" maxlength="40" autocomplete="off" autocapitalize="words" enterkeyhint="next" placeholder="${s.letter}…" ${firstRender ? `value="${esc(saved[k] || '')}" data-reset="1"` : ''}></label></li>`).join('')}
+        </ol></div>
+        <button class="btn btn-primary btn-big sg-done" id="sg-done">I'm done</button></div>`;
     }
   } else if (s.phase === 'review') {
-    html = `<p class="muted center">Category ${s.review + 1} of ${PER_ROUND} · ${s.letter}</p>
-      <div class="display-l center">${esc(s.categories[s.review])}</div>
+    html = `<div class="sg-review-top"><div class="sg-letter sm">${s.letter}</div><div><div class="muted">Category ${s.review + 1} of ${PER_ROUND}</div>${dots(s)}</div></div>
+      <div class="sg-pad sg-cat-card"><div class="sg-cat-name">${esc(s.categories[s.review])}</div></div>
       <div class="stack">${answerCards(s, players, { phone: true, me })}</div>
       ${isVip ? `<div class="row-center" style="margin-top:1rem"><button class="btn btn-primary btn-big" id="sg-next">${s.review < PER_ROUND - 1 ? 'Next category' : 'Score the round'}</button></div>` : ''}`;
   } else {
@@ -44,6 +46,12 @@ export function renderPlayer(el, { state: s, priv = {}, me, players, sendAction 
   const collect = () => Array.from({ length: PER_ROUND }, (_, k) => el.querySelector(`#sg-${k}`)?.value || '');
   el.querySelectorAll('.sg-phone-list input').forEach((input) => {
     delete input.dataset.reset;
+    input.onkeydown = (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const next = el.querySelector(`#sg-${Number(input.id.slice(3)) + 1}`);
+      if (next) next.focus(); else input.blur();
+    };
     input.oninput = () => {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => sendAction('game:answers', { answers: collect(), done: false }), 900);

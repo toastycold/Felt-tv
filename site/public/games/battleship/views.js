@@ -1,6 +1,7 @@
 // TV and phone views for Battleship.
 import { esc, nameOf, injectStyles, setHtmlKeepingInputs } from '../../js/ui.js';
 import { N, FLEET } from './engine.js';
+import { playShot, playWin } from './sound.js';
 
 // Painted art (art/*.webp). Turned on once the images exist.
 export const ART_READY = true;
@@ -46,11 +47,13 @@ function styles() {
     .bs-ships { position: absolute; left: calc(1.3em + 2px); top: calc(1.3em + 2px); right: 0; bottom: 0; pointer-events: none; }
     .bs-ship { position: absolute; object-fit: fill; padding: 1.2% .4%; box-sizing: border-box; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
     .bs-ship.dim { filter: grayscale(.7) brightness(.55); }
-    .art .bs-ships { left: calc(1.3em + 2px); top: calc(1.3em + 2px); }
-    .art .bs-grid { position: relative; }
-    .art .bs-grid::before { content: ''; position: absolute; left: calc(1.3em + 2px); top: calc(1.3em + 2px); right: 0; bottom: 0;
-      background: url(games/battleship/art/ocean.webp) center / 50% repeat; border-radius: 6px; }
-    .art .bs-cell { position: relative; background: transparent; border-radius: 0; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.18); }
+    /* One big ocean painting sits under the whole 10×10 area; thin grid lines are drawn on top. */
+    .art .bs-grid { position: relative; gap: 0; }
+    .art .bs-grid::before { content: ''; position: absolute; left: 1.3em; top: 1.3em; right: 0; bottom: 0;
+      background: url(games/battleship/art/ocean-square.webp) center / 100% 100% no-repeat; border-radius: 4px;
+      box-shadow: 0 0 0 2px rgba(255,255,255,.25), 0 6px 18px rgba(0,0,0,.35); }
+    .art .bs-cell { position: relative; background: transparent; border-radius: 0; box-shadow: inset -1px -1px 0 rgba(255,255,255,.16); }
+    .art .bs-ships { left: 1.3em; top: 1.3em; }
     .art .bs-cell.ship { background: transparent; }
     /* Your own fleet stays covered so nobody can peek over your shoulder; press and hold to look. */
     .bs-mine.covered .bs-ships { visibility: hidden; }
@@ -140,9 +143,11 @@ function bigMoment(s) {
   const o = document.createElement('div');
   const kind = s.last.sunk ? 'sunk' : s.last.hit ? 'hit' : 'miss';
   o.className = `bs-big ${kind}`;
+  playShot(kind);
+  if (s.phase === 'over') setTimeout(playWin, 2300);
   o.innerHTML = `<span>${s.last.sunk ? `Sunk the<br>${esc(s.last.sunk)}!` : s.last.hit ? 'HIT!' : 'Miss'}</span>`;
-  document.body.appendChild(o);
-  setTimeout(() => o.remove(), 1500);
+  // Show the big word when the shell lands, in time with the sound.
+  setTimeout(() => { document.body.appendChild(o); setTimeout(() => o.remove(), 1500); }, 700);
 }
 
 export function renderBoard(el, { state: s, players, sendAction }) {

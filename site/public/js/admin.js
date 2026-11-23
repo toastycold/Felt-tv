@@ -1,7 +1,7 @@
 // Admin page: sign in with Google, then approve or deny suggestions per game.
 import {
   db, ref, update, onValue, serverTimestamp,
-  signInAdmin, signOutAdmin, watchUser, ADMIN_EMAIL, warnIfNotConfigured,
+  signInAdmin, signOutAdmin, watchUser, finishAdminRedirect, signInHelp, ADMIN_EMAIL, warnIfNotConfigured,
 } from './firebase.js';
 import { loadCatalog, escapeHtml } from './catalog.js';
 import { kindsFor } from './suggestions.js';
@@ -18,7 +18,10 @@ main();
 async function main() {
   if (warnIfNotConfigured()) return;
   games = await loadCatalog();
+  let redirectError = '';
+  await finishAdminRedirect().catch((err) => { redirectError = signInHelp(err); });
   watchUser((user) => {
+    if (redirectError && (!user || user.isAnonymous)) { const m = redirectError; redirectError = ''; return showSignIn(m); }
     unsub.forEach((u) => u()); unsub = [];
     $('#signout').hidden = !user || user.isAnonymous;
     if (!user || user.isAnonymous) return showSignIn();
@@ -37,7 +40,7 @@ function showSignIn(message = '') {
     ${message ? `<p class="error">${escapeHtml(message)}</p>` : ''}
     <button class="btn btn-primary btn-big" id="signin">Sign in with Google</button>
   </div>`;
-  $('#signin').onclick = () => signInAdmin().catch((err) => showSignIn(err.message));
+  $('#signin').onclick = () => signInAdmin().catch((err) => showSignIn(signInHelp(err)));
 }
 
 const gameName = (id) => games.find((g) => g.id === id)?.name || id;

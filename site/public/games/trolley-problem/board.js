@@ -1,5 +1,6 @@
 // TV view for Trolley Problem.
 import { esc, nameOf, injectStyles, scoreboard } from '../../js/ui.js';
+import { sceneHtml, sceneCss } from './scene.js';
 
 export function trolleyStyles() {
   injectStyles('trolley', `
@@ -16,6 +17,11 @@ export function trolleyStyles() {
     .tp-voter { padding: .35rem .85rem; border-radius: 99px; background: var(--felt-deep); font-weight: 700; }
     .tp-voter.in { background: var(--gold); color: var(--ink); }
     @media (max-width: 700px) { .tp-tracks { grid-template-columns: 1fr; } }
+    .tp-twist { font: 800 clamp(1rem, 3vh, 1.4rem) var(--display); color: var(--gold); margin: 0 0 .4rem; }
+    .tp-foot { display: flex; align-items: center; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-top: .8rem; }
+    .tp-foot .scoreboard { margin: 0; }
+    .tp-verdict { font: 900 clamp(1.4rem, 4.5vh, 2.2rem) var(--display); margin: .7rem 0 .2rem; }
+    ${sceneCss}
   `);
 }
 
@@ -46,22 +52,25 @@ export function renderBoard(el, { state: s, players, sendAction }) {
   }
 
   const reveal = s.phase === 'reveal';
+  const counts = { stay: 0, pull: 0 }, names = { stay: [], pull: [] };
+  for (const [id, v] of Object.entries(s.votes)) { counts[v.choice]++; names[v.choice].push(nameOf(id, players)); }
   let footer;
   if (reveal) {
-    const verdict = s.majority === 'tie' ? 'A perfect split. Everyone scores.' : s.majority === 'pull' ? 'Most of you pulled the lever.' : 'Most of you did nothing.';
-    footer = `<div class="display-l">${verdict}</div>
-      <p class="muted">A point for everyone who predicted the majority.</p>
-      ${scoreboard(rows())}
-      <div class="row-center"><button class="btn btn-primary btn-big" id="tp-next">${s.round >= s.total ? 'Final scores' : 'Next trolley'}</button></div>`;
+    const verdict = s.majority === 'tie' ? 'A perfect split! The trolley slams on the brakes. Everyone scores.' : s.majority === 'pull' ? 'Most of you pulled the lever.' : 'Most of you did nothing.';
+    footer = `<div class="tp-verdict">${verdict}</div>
+      <p class="muted" style="margin:0">A point for everyone who predicted the majority.</p>
+      <div class="tp-foot">${scoreboard(rows())}
+      <button class="btn btn-primary btn-big" id="tp-next">${s.round >= s.total ? 'Final scores' : 'Next trolley'}</button></div>`;
   } else {
-    footer = `<p class="lede">Decide on your phone, then guess what most people picked.</p>
+    footer = `<p class="lede" style="margin:.7rem 0 .4rem">Pull the lever or do nothing? Decide on your phone, then guess what most people picked.</p>
       <div class="tp-voters">${players.map((p) => `<span class="tp-voter ${s.votes[p.id] ? 'in' : ''}">${esc(p.name)}</span>`).join('')}</div>
-      ${Object.keys(s.votes).length ? '<div class="row-center" style="margin-top:1rem"><button class="btn btn-ghost" id="tp-reveal">Reveal now</button></div>' : ''}`;
+      ${Object.keys(s.votes).length ? '<div class="row-center" style="margin-top:.8rem"><button class="btn btn-ghost" id="tp-reveal">Reveal now</button></div>' : ''}`;
   }
 
   el.innerHTML = `<div class="tp">
     <div class="game-head"><span>Trolley ${s.round} of ${s.total}</span><span></span></div>
-    ${trackCards(s, players, reveal)}
+    ${s.dilemma?.twist ? `<p class="tp-twist">${esc(s.dilemma.twist)}</p>` : ''}
+    ${sceneHtml(s, reveal ? { outcome: s.majority, counts, names } : {})}
     ${footer}
   </div>`;
   el.querySelector('#tp-next')?.addEventListener('click', () => sendAction('game:next'));

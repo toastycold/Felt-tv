@@ -49,14 +49,96 @@ function styles() {
       45% { transform: translate(-4px, 2px) } 60% { transform: translate(4px,-1px) } 80% { transform: translate(-2px, 1px) } }
     .tt-glow { animation: tt-glow 1200ms ease-out; }
     @keyframes tt-glow { 0% { box-shadow: 0 0 0 6px #fff, 0 0 40px 12px #ffe14d } 100% { box-shadow: 0 0 0 3px rgba(255,255,255,.1) } }
-    @media (prefers-reduced-motion: reduce) { .tt-shake, .tt-glow { animation: none } }
+    .tt-banner { position: fixed; inset: 0; z-index: 1000; pointer-events: none; display: grid; place-items: center; overflow: hidden;
+      animation: tt-fade 2.2s ease forwards; background: radial-gradient(circle, rgba(255,255,255,.18), rgba(0,0,0,.35) 70%); }
+    .tt-banner div { display: grid; place-items: center; animation: tt-slam .5s cubic-bezier(.2,1.6,.4,1); }
+    .tt-banner b { font: 900 min(26vh, 17vw)/1 var(--display); letter-spacing: .02em;
+      background: linear-gradient(90deg,#ff5b5b,#ffb43a,#ffe14d,#5be37a,#4ac8ff,#b46bff,#ff5b5b); background-size: 200% 100%;
+      -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 .05em 0 rgba(0,0,0,.55)); animation: tt-rainbow 1s linear infinite; }
+    .tt-banner span { font: 800 min(7vh, 5vw) var(--display); color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.4); }
+    .tt-banner i { position: absolute; top: -6vh; width: 3.2vh; height: 3.2vh; border-radius: 4px; box-shadow: inset 0 3px 0 rgba(255,255,255,.4), inset 0 -3px 0 rgba(0,0,0,.3);
+      animation: tt-fall 1.6s ease-in forwards; }
+    @keyframes tt-slam { 0% { transform: scale(3) rotate(-8deg); opacity: 0 } 100% { transform: none; opacity: 1 } }
+    @keyframes tt-rainbow { to { background-position: -200% 0 } }
+    @keyframes tt-fall { to { transform: translateY(115vh) rotate(var(--r)) } }
+    @keyframes tt-fade { 0%, 75% { opacity: 1 } 100% { opacity: 0 } }
+    @media (prefers-reduced-motion: reduce) { .tt-shake, .tt-glow, .tt-banner, .tt-banner * { animation: none } }
   `);
 }
 
 // ---------------- Line-clear celebration (TV and phone) ----------------
 const CLEAR_WORDS = ['', 'Single', 'Double!', 'Triple!', 'TETRIS!'];
-function celebrate(wrap, canvas, n) {
+/**
+ * Blocks from the cleared rows blast apart and tumble off the board.
+ * rows: which rows were cleared; colors: each row's cell colors (TV doesn't know them, so it uses random ones).
+ */
+function burst(wrap, canvas, rows, colors, n) {
+  if (!wrap || !canvas || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const fx = document.createElement('canvas');
+  const r = canvas.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+  const scale = Math.min(2, devicePixelRatio || 1);
+  fx.width = r.width * scale; fx.height = r.height * scale;
+  Object.assign(fx.style, { position: 'absolute', left: `${r.left - wr.left}px`, top: `${r.top - wr.top}px`, width: `${r.width}px`, height: `${r.height}px`, pointerEvents: 'none', zIndex: 1, overflow: 'visible' });
+  wrap.appendChild(fx);
+  const ctx = fx.getContext('2d');
+  const cw = fx.width / W, ch = fx.height / H;
+  const kinds = Object.keys(COLORS);
+  const parts = [];
+  rows.forEach((row, k) => {
+    for (let x = 0; x < W; x++) {
+      const col = COLORS[colors?.[k]?.[x]] || COLORS[kinds[(x + row) % kinds.length]];
+      const pieces = n === 4 ? 3 : 2;
+      for (let p = 0; p < pieces; p++) {
+        const dir = (x - W / 2 + Math.random() - 0.5) / (W / 2);
+        parts.push({ x: (x + 0.5) * cw, y: (row + 0.5) * ch, vx: dir * (2 + Math.random() * 5) * scale * (n === 4 ? 1.6 : 1),
+          vy: (-3 - Math.random() * 6) * scale * (n === 4 ? 1.4 : 1), s: cw * (0.35 + Math.random() * 0.35), a: Math.random() * 6, va: (Math.random() - 0.5) * 0.5, col });
+      }
+    }
+  });
+  const start = performance.now(), life = n === 4 ? 1500 : 950;
+  const tick = (now) => {
+    const t = now - start;
+    ctx.clearRect(0, 0, fx.width, fx.height);
+    // a bright beam sweeps across the cleared rows first
+    if (t < 220) {
+      const k = t / 220;
+      rows.forEach((row) => {
+        const g = ctx.createLinearGradient(0, 0, fx.width, 0);
+        g.addColorStop(Math.max(0, k - 0.25), 'rgba(255,255,255,0)');
+        g.addColorStop(k, 'rgba(255,255,255,.95)');
+        g.addColorStop(Math.min(1, k + 0.02), 'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, row * ch, fx.width, ch);
+      });
+    }
+    for (const p of parts) {
+      p.vy += 0.35 * scale; p.x += p.vx; p.y += p.vy; p.a += p.va;
+      ctx.save(); ctx.globalAlpha = Math.max(0, 1 - t / life);
+      ctx.translate(p.x, p.y); ctx.rotate(p.a);
+      bevel(ctx, -p.s / 2, -p.s / 2, p.s, p.s, p.col);
+      ctx.restore();
+    }
+    if (t < life) requestAnimationFrame(tick); else fx.remove();
+  };
+  requestAnimationFrame(tick);
+}
+
+/** Huge "TETRIS!" across the whole TV with the player's name and a shower of blocks. */
+function tvBanner(name) {
+  document.querySelector('.tt-banner')?.remove();
+  const b = document.createElement('div');
+  b.className = 'tt-banner';
+  const kinds = Object.keys(COLORS);
+  const confetti = Array.from({ length: 36 }, (_, i) => `<i style="left:${Math.random() * 100}%;background:${COLORS[kinds[i % kinds.length]]};
+    animation-delay:${(Math.random() * 0.4).toFixed(2)}s;animation-duration:${(1.2 + Math.random() * 0.8).toFixed(2)}s;--r:${Math.round(Math.random() * 720 - 360)}deg"></i>`).join('');
+  b.innerHTML = `${confetti}<div><b>TETRIS!</b><span>${esc(name)}</span></div>`;
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 2200);
+}
+
+function celebrate(wrap, canvas, n, rows = [], colors = null) {
   if (!wrap || !n) return;
+  burst(wrap, canvas, rows.length ? rows : Array.from({ length: n }, (_, k) => H - 1 - k), colors, n);
+  if (n === 4 && navigator.vibrate) navigator.vibrate([40, 30, 90]);
   const pop = document.createElement('div');
   pop.className = `tt-pop n${n}`;
   pop.textContent = CLEAR_WORDS[n];
@@ -99,6 +181,7 @@ export function renderBoard(el, { state: s, players, sendAction }) {
     tvFx = s.fx.k;
     const box = el.querySelector(`.tt-p[data-id="${s.fx.id}"]`);
     if (box) celebrate(box.querySelector('.tt-wrap'), box.querySelector('canvas'), s.fx.n);
+    if (s.fx.n === 4) tvBanner(nameOf(s.fx.id, players));
   }
   el.querySelector('#tt-log').textContent = s.log?.[0] || (s.phase === 'play' ? (s.solo ? 'Go for a high score!' : 'Clear 2+ lines at once to send junk rows!') : '');
   countdownOverlay(s);
@@ -173,7 +256,7 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
     applied = s.junk?.[me] || 0;
     game = new Tetris({
       onLock: () => { dirty = true; snap(true); },
-      onClear: (n, rows) => { flashes.push({ rows, n, t: performance.now() }); celebrate(el.querySelector('#tt-wrap'), el.querySelector('#tt-me'), n); send?.('game:cleared', { lines: n }); },
+      onClear: (n, rows, colors) => { flashes.push({ rows, n, t: performance.now() }); celebrate(el.querySelector('#tt-wrap'), el.querySelector('#tt-me'), n, rows, colors); send?.('game:cleared', { lines: n }); },
       onTopOut: () => { snap(true); send?.('game:topout', { score: game?.score || 0 }); },
     });
     lastDrop = performance.now();

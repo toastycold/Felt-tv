@@ -1,6 +1,7 @@
 // Phone view for Trolley Problem: choose, then predict the majority.
 import { esc, scoreboard } from '../../js/ui.js';
 import { trolleyStyles } from './board.js';
+import { sceneHtml } from './scene.js';
 
 let draft = { round: 0, choice: '' };
 
@@ -38,7 +39,9 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
 
   const option = (key, label, sub, picked) => `<button class="choice-btn ${picked === key ? 'picked' : ''}" data-v="${key}">${label}<small>${esc(sub)}</small></button>`;
   if (!draft.choice) {
-    el.innerHTML = `<div class="display-l">What do you do?</div>
+    el.innerHTML = `${sceneHtml(s, { cards: false })}
+      ${s.dilemma.twist ? `<p class="tp-twist">${esc(s.dilemma.twist)}</p>` : ''}
+      <div class="display-l">What do you do?</div>
       ${option('stay', 'Do nothing', `It hits: ${s.dilemma.stay}`)}
       ${option('pull', 'Pull the lever', `It hits: ${s.dilemma.pull}`)}`;
     el.querySelectorAll('[data-v]').forEach((b) => (b.onclick = () => { draft.choice = b.dataset.v; renderPlayer(el, { state: s, me, players, sendAction }); }));

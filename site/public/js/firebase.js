@@ -8,6 +8,9 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  browserPopupRedirectResolver,
   signOut,
 } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js';
 import {
@@ -47,9 +50,32 @@ export { query, orderByValue, orderByChild, endAt, limitToFirst };
 export { ADMIN_EMAIL };
 
 /** Admin sign-in with Google (admin.html only). Resolves with the signed-in user. */
+// initializeAuth leaves out the pop-up/redirect helper, so it's passed in here.
 export async function signInAdmin() {
-  const result = await signInWithPopup(auth, new GoogleAuthProvider());
-  return result.user;
+  const provider = new GoogleAuthProvider();
+  try {
+    const result = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+    return result.user;
+  } catch (err) {
+    // Installed apps and some phone browsers can't open pop-ups: sign in on a full page instead.
+    if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(err.code)) {
+      await signInWithRedirect(auth, provider, browserPopupRedirectResolver);
+      return null;
+    }
+    throw err;
+  }
+}
+/** Finishes a full-page Google sign-in after coming back to admin.html. */
+export function finishAdminRedirect() { return getRedirectResult(auth, browserPopupRedirectResolver).catch((err) => { throw err; }); }
+
+/** Plain-English versions of the sign-in errors you're likely to hit. */
+export function signInHelp(err) {
+  const code = err?.code || '';
+  if (code === 'auth/operation-not-allowed') return 'Google sign-in is turned off for this Firebase project. In the Firebase console, go to Authentication → Sign-in method → Google and turn it on.';
+  if (code === 'auth/unauthorized-domain') return `This web address isn't allowed to sign in yet. In the Firebase console, go to Authentication → Settings → Authorized domains and add ${location.hostname}.`;
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return 'The sign-in window was closed before finishing. Try again.';
+  if (code === 'auth/network-request-failed') return 'No connection to Google. Check your internet and try again.';
+  return `${err?.message || 'Sign-in failed.'}${code ? ` (${code})` : ''}`;
 }
 export function signOutAdmin() { return signOut(auth); }
 export function watchUser(cb) { return onAuthStateChanged(auth, cb); }
