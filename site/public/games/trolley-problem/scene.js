@@ -16,44 +16,23 @@ function rails(d, id) {
     <path d="${d}" fill="none" stroke="#7a5b3f" stroke-width="5"/>`;
 }
 
-const tram = `
-  <g class="tp-tram">
-    <line x1="-20" y1="-128" x2="30" y2="-190" stroke="#3a3a3a" stroke-width="5"/>
-    <circle cx="30" cy="-190" r="5" fill="#3a3a3a"/>
-    <rect x="-95" y="-120" width="190" height="98" rx="20" fill="#d6453d"/>
-    <rect x="-95" y="-120" width="190" height="22" rx="11" fill="#f2c230"/>
-    <rect x="-82" y="-90" width="44" height="36" rx="7" fill="#cfe8ff" stroke="#8a2620" stroke-width="3"/>
-    <rect x="-27" y="-90" width="44" height="36" rx="7" fill="#cfe8ff" stroke="#8a2620" stroke-width="3"/>
-    <rect x="28" y="-90" width="44" height="36" rx="7" fill="#cfe8ff" stroke="#8a2620" stroke-width="3"/>
-    <rect x="-95" y="-44" width="190" height="12" fill="#8a2620"/>
-    <circle cx="88" cy="-62" r="8" fill="#fff6c9" stroke="#8a2620" stroke-width="2"/>
-    <circle cx="-55" cy="-16" r="16" fill="#2d2d2d"/><circle cx="-55" cy="-16" r="6" fill="#999"/>
-    <circle cx="55" cy="-16" r="16" fill="#2d2d2d"/><circle cx="55" cy="-16" r="6" fill="#999"/>
-  </g>`;
+const ART = 'games/trolley-problem/art';
+const tram = `<g class="tp-tram"><image href="${ART}/trolley.webp" x="-122" y="-124" width="244" height="128"/></g>`;
 
 /** The person at the lever, wondering. */
 const thinker = `
-  <g transform="translate(560 520)">
-    <ellipse cx="0" cy="34" rx="34" ry="7" fill="rgba(0,0,0,.18)"/>
-    <rect x="-17" y="-8" width="14" height="40" rx="7" fill="#2b4a7a"/><rect x="3" y="-8" width="14" height="40" rx="7" fill="#2b4a7a"/>
-    <rect x="-22" y="-62" width="44" height="60" rx="18" fill="#3fa66a"/>
-    <circle cx="0" cy="-86" r="24" fill="#f1c7a0"/>
-    <path d="M-24 -92 Q0 -124 24 -92 Q12 -104 0 -102 Q-12 -104 -24 -92Z" fill="#5a3a22"/>
-    <circle cx="-8" cy="-86" r="3" fill="#222"/><circle cx="8" cy="-86" r="3" fill="#222"/>
-    <path d="M-7 -74 Q0 -70 7 -74" stroke="#222" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <path d="M18 -52 Q44 -50 52 -66" stroke="#f1c7a0" stroke-width="11" fill="none" stroke-linecap="round" class="tp-arm"/>
-    <g class="tp-think"><circle cx="30" cy="-122" r="5" fill="#fff"/><circle cx="44" cy="-138" r="8" fill="#fff"/>
-      <ellipse cx="72" cy="-166" rx="30" ry="22" fill="#fff"/><text x="72" y="-157" text-anchor="middle" font-size="28" font-weight="900" fill="#22201b">?</text></g>
+  <g transform="translate(575 528)">
+    <ellipse cx="0" cy="0" rx="36" ry="7" fill="rgba(0,0,0,.2)"/>
+    <image href="${ART}/thinker.webp" x="-33" y="-172" width="66" height="172"/>
+    <g class="tp-think"><circle cx="30" cy="-178" r="5" fill="#fff"/><circle cx="44" cy="-194" r="8" fill="#fff"/>
+      <ellipse cx="72" cy="-222" rx="30" ry="22" fill="#fff"/><text x="72" y="-213" text-anchor="middle" font-size="28" font-weight="900" fill="#22201b">?</text></g>
   </g>`;
 
 /** The lever: tilted left (straight track) or right (pulled). */
 const lever = (pulled) => `
-  <g transform="translate(470 500)">
-    <rect x="-26" y="-6" width="52" height="22" rx="6" fill="#5b5b5b"/>
-    <g class="tp-lever ${pulled ? 'pulled' : ''}">
-      <rect x="-4" y="-70" width="8" height="70" rx="4" fill="#3a3a3a"/>
-      <circle cx="0" cy="-74" r="11" fill="#d6453d"/>
-    </g>
+  <g transform="translate(478 512)">
+    <ellipse cx="0" cy="2" rx="40" ry="6" fill="rgba(0,0,0,.2)"/>
+    <g class="tp-lever ${pulled ? 'pulled' : ''}"><image href="${ART}/lever.webp" x="-38" y="-92" width="76" height="92"/></g>
   </g>`;
 
 /**
@@ -110,8 +89,9 @@ export const sceneCss = `
   .tp-scene .tp-fx { z-index: 2; pointer-events: none; }
   .tp-scene:not(.go) .tp-tram { animation: tp-idle 1.6s ease-in-out infinite; }
   @keyframes tp-idle { 50% { transform: translateY(-2px); } }
-  .tp-lever { transform-origin: 0 0; transform: rotate(-28deg); transition: transform .5s cubic-bezier(.3,1.6,.5,1); }
-  .tp-lever.pulled { transform: rotate(28deg); }
+  .tp-lever { transform-box: fill-box; transform-origin: 50% 100%; }
+  .tp-lever.pulled { animation: tp-pull .5s .2s cubic-bezier(.3,1.6,.5,1) both; }
+  @keyframes tp-pull { from { transform: scaleX(1); } to { transform: scaleX(-1); } }
   .go .tp-think { display: none; }
   .tp-boom { opacity: 0; animation: tp-boom .5s 2.2s ease-out forwards; transform-box: fill-box; transform-origin: center; }
   .go-tie .tp-boom { animation-delay: 1.1s; }
