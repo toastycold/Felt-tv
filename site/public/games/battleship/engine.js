@@ -45,6 +45,7 @@ export default class BattleshipEngine extends BaseGameEngine {
   onInit() {
     this.state = {
       phase: 'lobby',   // lobby | setup | play | over
+      locked: false,    // teams can't change once anyone starts placing ships
       teams: { red: [], blue: [] },
       ready: { red: false, blue: false },
       shots: { red: [], blue: [] },   // shots[t] = cells fired AT team t's waters: [{ i, hit }]
@@ -69,7 +70,8 @@ export default class BattleshipEngine extends BaseGameEngine {
     const s = this.state;
     for (const p of this.players) {
       const t = this.teamOf(p.id);
-      this.setPrivate(p.id, t ? { team: t, fleet: this.secret.fleets[t] } : {});
+      // Fleets stay hidden until teams are locked, so nobody can peek at one side and then switch.
+      this.setPrivate(p.id, t ? { team: t, fleet: s.locked ? this.secret.fleets[t] : null } : {});
     }
     super.sync();
   }
@@ -129,18 +131,23 @@ export default class BattleshipEngine extends BaseGameEngine {
     s.error = '';
     switch (type) {
       case 'game:join-team':
-        if (s.phase !== 'setup' || !TEAMS.includes(p.team) || meta.isBoard || myTeam === p.team) return;
+        if (s.phase !== 'setup' || s.locked || !TEAMS.includes(p.team) || meta.isBoard || myTeam === p.team) return;
         for (const t of TEAMS) s.teams[t] = s.teams[t].filter((x) => x !== me);
         s.teams[p.team].push(me);
         s.ready = { red: false, blue: false };
         break;
+      case 'game:lock':   // someone starts placing ships: teams are final from here on
+        if (s.phase !== 'setup' || s.locked || !(myTeam || host)) return;
+        if (!TEAMS.every((t) => s.teams[t].length)) { s.error = 'Both teams need at least one player.'; break; }
+        s.locked = true;
+        break;
       case 'game:shuffle':
-        if (s.phase !== 'setup' || !myTeam) return;
+        if (s.phase !== 'setup' || !myTeam || !s.locked) return;
         this.secret.fleets[myTeam] = placeFleet();
         s.ready[myTeam] = false;
         break;
       case 'game:ready':
-        if (s.phase !== 'setup' || !myTeam) return;
+        if (s.phase !== 'setup' || !myTeam || !s.locked) return;
         s.ready[myTeam] = true;
         if (TEAMS.every((t) => s.ready[t] && s.teams[t].length)) {
           s.phase = 'play';
@@ -165,7 +172,8 @@ export default class BattleshipEngine extends BaseGameEngine {
         break;
       case 'game:new-game':
         if (s.phase !== 'over' || !host) return;
-        Object.assign(s, { phase: 'setup', ready: { red: false, blue: false }, shots: { red: [], blue: [] }, sunk: { red: [], blue: [] }, last: null, winner: '', reveal: null });
+        this.secret.fleets = { red: placeFleet(), blue: placeFleet() };
+        Object.assign(s, { phase: 'setup', locked: false, ready: { red: false, blue: false }, shots: { red: [], blue: [] }, sunk: { red: [], blue: [] }, last: null, winner: '', reveal: null });
         this.secret.fleets = { red: placeFleet(), blue: placeFleet() };
         break;
       default:

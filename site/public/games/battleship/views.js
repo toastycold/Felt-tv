@@ -52,6 +52,11 @@ function styles() {
       background: url(games/battleship/art/ocean.webp) center / 50% repeat; border-radius: 6px; }
     .art .bs-cell { position: relative; background: transparent; border-radius: 0; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.18); }
     .art .bs-cell.ship { background: transparent; }
+    /* Your own fleet stays covered so nobody can peek over your shoulder; press and hold to look. */
+    .bs-mine.covered .bs-ships { visibility: hidden; }
+    .bs-mine.covered .bs-cell.ship:not(.hit) { background: #1d5a8a; }
+    .bs-mine.covered .art .bs-cell.ship:not(.hit) { background: transparent; }
+    .bs-peek { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .art .bs-cell.miss::after { content: ''; width: 90%; height: 90%; border-radius: 0; background: url(games/battleship/art/splash.webp) center / contain no-repeat; }
     .art .bs-cell.hit { background: rgba(224,87,78,.25); }
     .art .bs-cell.hit::after { content: ''; position: relative; z-index: 2; width: 110%; height: 110%; background: url(games/battleship/art/explosion.webp) center / contain no-repeat; }
@@ -101,6 +106,21 @@ function gridHtml(s, team, { fleet = null, clickable = false, pick = -1 } = {}) 
   return `<div class="bs-gridwrap ${ART_READY ? 'art' : ''}"><div class="bs-grid">${html}</div>${shipsLayer(shipsHere, !fleet)}</div>`;
 }
 
+/** Your own fleet, covered until you press and hold "Peek". */
+const mine = (s, team, fleet) => `<div class="bs-mine covered">${gridHtml(s, team, { fleet })}</div>
+  <div class="bs-actions"><button type="button" class="btn btn-ghost bs-peek">Hold to peek at your ships</button></div>`;
+
+function wirePeek(el) {
+  el.querySelectorAll('.bs-peek').forEach((b) => {
+    const box = b.parentElement.previousElementSibling;
+    const show = (e) => { e.preventDefault(); box.classList.remove('covered'); };
+    const hide = () => box.classList.add('covered');
+    b.addEventListener('pointerdown', show);
+    ['pointerup', 'pointerleave', 'pointercancel', 'blur'].forEach((t) => b.addEventListener(t, hide));
+    b.addEventListener('contextmenu', (e) => e.preventDefault());
+  });
+}
+
 const fleetHtml = (s, team) => `<div class="bs-fleet">${FLEET.map((f) => `<span class="${(s.sunk?.[team] || []).some((x) => x.name === f.name) ? 'gone' : ''}">${f.name}</span>`).join('')}</div>`;
 
 function lastHtml(s, players) {
@@ -132,7 +152,8 @@ export function renderBoard(el, { state: s, players, sendAction }) {
 
   if (s.phase === 'setup') {
     el.innerHTML = `<div class="bs">
-      <p class="bs-msg">Pick a team on your phone, shuffle your ships until you like them, then tap Ready.</p>
+      <p class="bs-msg">${s.locked ? 'Teams are locked! Shuffle your ships until you like them, then tap Ready.'
+        : 'Pick a team on your phone. When everyone is set, tap "Place our ships". Teams lock after that.'}</p>
       <div class="bs-teams">${['red', 'blue'].map((t) => `<div><h2 style="color:${t === 'red' ? '#ff9a92' : '#9cc4ff'}">${label(t)} fleet ${s.ready[t] ? '✓ Ready' : ''}</h2><ul>${names(t)}</ul></div>`).join('')}</div></div>`;
     return;
   }
@@ -163,16 +184,21 @@ export function renderPlayer(el, { state: s, priv = {}, me, players, sendAction 
   if (s.phase === 'setup') {
     setHtmlKeepingInputs(el, `<div class="bs bs-phone">
       <p>${badge}</p>
-      <div class="bs-actions">
+      ${s.locked ? '' : `<div class="bs-actions">
         <button class="btn btn-red" data-team="red" ${team === 'red' ? 'disabled' : ''}>Join Red</button>
         <button class="btn btn-blue" data-team="blue" ${team === 'blue' ? 'disabled' : ''}>Join Blue</button>
       </div>
-      ${team ? `<h2>Your fleet</h2>${gridHtml(s, team, { fleet: priv.fleet })}
+      ${team ? `<div class="bs-actions"><button class="btn btn-primary btn-big" id="bs-lock">Place our ships</button></div>
+        <p class="muted">Teams lock once anyone taps this.</p>` : ''}
+      ${s.error ? `<p class="error">${esc(s.error)}</p>` : ''}`}
+      ${team && s.locked ? `<h2>Your fleet</h2>${mine(s, team, priv.fleet)}
         <div class="bs-actions"><button class="btn btn-ghost" id="bs-shuffle">Shuffle ships</button>
         <button class="btn btn-primary btn-big" id="bs-ready" ${s.ready[team] ? 'disabled' : ''}>${s.ready[team] ? 'Ready ✓' : "We're ready"}</button></div>
         <p class="muted">${s.ready[other(team)] ? `${label(other(team))} is ready.` : `Waiting on ${label(other(team))}…`}</p>` : ''}
     </div>`);
     el.querySelectorAll('[data-team]').forEach((b) => (b.onclick = () => sendAction('game:join-team', { team: b.dataset.team })));
+    wirePeek(el);
+    el.querySelector('#bs-lock')?.addEventListener('click', () => sendAction('game:lock'));
     el.querySelector('#bs-shuffle')?.addEventListener('click', () => sendAction('game:shuffle'));
     el.querySelector('#bs-ready')?.addEventListener('click', () => sendAction('game:ready'));
     return;
@@ -192,9 +218,10 @@ export function renderPlayer(el, { state: s, priv = {}, me, players, sendAction 
     <p class="bs-msg">${lastHtml(s, players)}</p>
     ${team ? `<h3>${label(other(team))}'s waters</h3>${gridHtml(s, other(team), { clickable: myShot, pick: picked, fleet: over ? s.reveal?.[other(team)] : null })}${fleetHtml(s, other(team))}
       ${myShot ? `<div class="bs-actions"><button class="btn btn-primary btn-big" id="bs-fire" ${picked < 0 ? 'disabled' : ''}>Fire!</button></div>` : ''}
-      <h3>Your fleet</h3>${gridHtml(s, team, { fleet: priv.fleet })}` : '<p class="muted">You joined late, so you\'re watching this battle.</p>'}
+      <h3>Your fleet</h3>${mine(s, team, priv.fleet)}` : '<p class="muted">You joined late, so you\'re watching this battle.</p>'}
     ${over && isVip ? '<div class="bs-actions"><button class="btn btn-primary btn-big" id="bs-new">New battle</button></div>' : ''}
   </div>`);
+  wirePeek(el);
   el.querySelectorAll('button.bs-cell:not(:disabled)').forEach((b) => (b.onclick = () => {
     picked = Number(b.dataset.i);
     renderPlayer(el, { state: s, priv, me, players, sendAction });

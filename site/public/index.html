@@ -22,7 +22,7 @@
 <body>
   <header class="topbar">
     <a class="wordmark" href="index.html">Felt</a>
-    <nav><a href="host.html">Host</a><a href="play.html">Join</a></nav>
+    <nav><a href="host.html">Host</a><a href="play.html">Join</a><a href="admin.html" id="admin-link" hidden>Suggestions</a></nav>
   </header>
 
   <main class="page">
@@ -105,5 +105,6 @@
     };
     render();
   </script>
+  <script>try { if (localStorage.getItem('tt-person') === 'Hayden') document.getElementById('admin-link').hidden = false; } catch {}</script>
 </body>
 </html>
