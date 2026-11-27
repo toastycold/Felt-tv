@@ -56,7 +56,7 @@ export function renderPlayer(el, { state: s, priv = {}, me, players, sendAction 
       ${dialSvg({ spectrum: s.spectrum, target: s.target, team: s.teamGuess, needle: mine ? mine.value : null })}
       <p class="wl-legend">${mine ? 'Black is your guess, <b class="wl-blue">blue</b> is the team\'s.' : '<b class="wl-blue">Blue</b> is the team\'s guess.'}</p>
       <div class="display-l">+${s.points}</div>
-      ${canNext ? `<button class="btn btn-primary btn-big" id="wl-next">${s.queue.length || s.cycle < s.cycles ? "You're up next: Next round" : 'Final score'}</button>` : `<p class="muted">${s.next ? `${esc(nameOf(s.next, players))} starts the next round.` : ''}</p>`}`;
+      <p class="muted">${canNext ? "You're the psychic next! The TV starts the round." : s.next ? `${esc(nameOf(s.next, players))} is the psychic next.` : ''}</p>`;
   }
 
   setHtmlKeepingInputs(el, `<div class="wl">

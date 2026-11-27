@@ -2,7 +2,7 @@
 import { esc, nameOf } from '../../js/ui.js';
 import { spriteHtml, poseFor } from '../../js/people.js';
 import { feudStyles } from './styles.js';
-import { teamName, boardHtml, strikesHtml, lastHtml, fmBoardHtml, runFmClock } from './shared.js';
+import { teamName, boardHtml, strikesHtml, lastHtml, fmBoardHtml, fmLiveHtml, runFmClock } from './shared.js';
 
 let seenStrikes = 0;
 
@@ -29,6 +29,25 @@ function bigStrike(count) {
   setTimeout(() => o.remove(), 1600);
   buzz();
 }
+
+/** The "ding!" when an answer flips over. */
+let ctxDing = null;
+export function ding() {
+  try {
+    ctxDing = ctxDing || new (window.AudioContext || window.webkitAudioContext)();
+    if (ctxDing.state === 'suspended') ctxDing.resume();
+    const a = ctxDing, t = a.currentTime + 0.01;
+    for (const [f, d] of [[1318.5, 0], [1760, 0.09]]) {
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t + d);
+      g.gain.exponentialRampToValueAtTime(0.35, t + d + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.9);
+      o.connect(g).connect(a.destination); o.start(t + d); o.stop(t + d + 1);
+    }
+  } catch { /* no sound */ }
+}
+let seenRevealed = -1, seenQuestion = '';
 
 export function buzz() {
   try {
@@ -71,6 +90,11 @@ export function renderBoard(el, { state: s, players, sendAction }) {
   if (s.phase === 'fm') { renderFastMoney(el, s, players, sendAction); return; }
   runFmClock(s);
 
+  const revealed = (s.board || []).filter(Boolean).length;
+  if (s.question !== seenQuestion) { seenQuestion = s.question; seenRevealed = revealed; }
+  if (revealed > seenRevealed && seenRevealed >= 0 && s.phase !== 'reveal') ding();
+  seenRevealed = revealed;
+
   const fresh = s.strikes > seenStrikes;
   seenStrikes = s.strikes;
   if (fresh) bigStrike(s.strikes);
@@ -84,7 +108,7 @@ export function renderBoard(el, { state: s, players, sendAction }) {
         <span class="red ${done.includes(s.faceoff.red) ? 'done' : ''}">${esc(nameOf(s.faceoff.red, players))}</span>
         <span>vs</span>
         <span class="blue ${done.includes(s.faceoff.blue) ? 'done' : ''}">${esc(nameOf(s.faceoff.blue, players))}</span></div>
-      <p class="ff-msg">Face-off! Type your answer on your phone. The higher answer wins control.</p>
+      <p class="ff-msg">${s.faceoff.turn ? `${teamName(s, s.faceoff.turn)}, your turn to answer!` : 'Face-off! First to type an answer on the board wins control.'}</p>
       ${s.message ? `<p class="ff-msg">${esc(s.message)}</p>` : ''}`;
   } else if (s.phase === 'play') {
     status = `<p class="ff-msg">${lastHtml(s, players)}</p>
@@ -108,6 +132,7 @@ export function renderBoard(el, { state: s, players, sendAction }) {
       <div class="ff-stage">${sideHtml(s, 'red', players)}<div class="ff-center">${boardHtml(s)}${strikesHtml(s, fresh)}</div>${sideHtml(s, 'blue', players)}</div>
       ${status}
       <div class="ff-actions">
+        ${s.phase === 'faceoff' && !s.board.some(Boolean) ? '<button class="btn btn-ghost" id="ff-skip-survey">Seen it! New survey</button>' : ''}
         ${s.phase === 'faceoff' ? '<button class="btn btn-ghost" id="ff-skip">Skip face-off</button>' : ''}
         ${s.phase === 'play' ? '<button class="btn btn-ghost" id="ff-time">Time\'s up (strike)</button>' : ''}
         ${s.phase === 'play' && s.strikes ? '<button class="btn btn-ghost" id="ff-undo">Take back a strike</button>' : ''}
@@ -120,6 +145,7 @@ export function renderBoard(el, { state: s, players, sendAction }) {
   const on = (id, action) => el.querySelector(id)?.addEventListener('click', () => sendAction(action));
   on('#ff-begin', 'game:begin');
   on('#ff-skip', 'game:skip-faceoff');
+  on('#ff-skip-survey', 'game:skip-survey');
   on('#ff-time', 'game:time-up');
   on('#ff-undo', 'game:undo-strike');
   on('#ff-next', 'game:next-round');
@@ -127,7 +153,7 @@ export function renderBoard(el, { state: s, players, sendAction }) {
   on('#ff-fm', 'game:fast-money');
 }
 
-let seenDup = 0;
+let seenDup = 0, fmSeenShown = '';
 function renderFastMoney(el, s, players, sendAction) {
   const fm = s.fm;
   const name = (id) => esc(nameOf(id, players));
@@ -135,31 +161,37 @@ function renderFastMoney(el, s, players, sendAction) {
   const solo = fm.p1 === fm.p2;
   if (fm.dup && fm.dup.k !== seenDup) { seenDup = fm.dup.k; buzz(); }
   if (!fm.dup) seenDup = 0;
+  // a ding for each answer worth points as it flips, a buzz for a zero
+  const turnNow = fm.step.endsWith('2') ? 1 : 0;
+  const key = `${turnNow}:${fm.shown[turnNow]}`;
+  if (fm.step.startsWith('reveal') && key !== fmSeenShown && fm.shown[turnNow] > 0) {
+    const a = fm.a[turnNow][fm.shown[turnNow] - 1];
+    if (a?.points) ding(); else buzz();
+  }
+  fmSeenShown = key;
   let top = '', actions = '';
   switch (fm.step) {
     case 'pick':
       top = `<p class="fm-q">${fam}, pick your two Fast Money players. Tap "I'll play" on your phones.</p>`;
       break;
     case 'ready1':
-      top = `<p class="fm-q">${name(fm.p1)} goes first with 20 seconds.</p>
+      top = `<p class="fm-q">${name(fm.p1)} goes first. 60 seconds on the clock, and whatever's left goes to ${solo ? 'your second try' : name(fm.p2)}.</p>
         ${solo ? '' : `<p class="fm-look">${name(fm.p2)}, turn away from the TV and cover your ears!</p>`}`;
       actions = '<button class="btn btn-primary btn-big" id="fm-start">Start the clock</button>';
       break;
     case 'ready2':
-      top = `<p class="fm-q">${solo ? `${name(fm.p2)}, your second try` : `${name(fm.p2)}, come on back`}! You have 25 seconds. Don't repeat ${solo ? 'your first' : `${name(fm.p1)}'s`} answers.</p>`;
+      top = `<p class="fm-q">${solo ? `${name(fm.p2)}, your second try` : `${name(fm.p2)}, come on back`}! You have ${Math.round(Math.max(10000, fm.left) / 1000)} seconds. Don't repeat ${solo ? 'your first' : `${name(fm.p1)}'s`} answers.</p>`;
       actions = '<button class="btn btn-primary btn-big" id="fm-start">Start the clock</button>';
       break;
     case 'play1': case 'play2': {
-      const qi = fm.order[0];
-      top = `<div class="center"><span class="fm-clock" data-fm-clock></span></div>
-        <p class="fm-q">${esc(fm.qs[qi] ?? '')}</p>
+      top = `<div class="center"><span class="fm-clock" data-fm-clock></span> <b class="fm-who">${name(s.current)}</b></div>
         ${fm.step === 'play1' && !solo ? `<p class="fm-look">${name(fm.p2)}, no peeking!</p>` : ''}
         ${fm.dup ? `<p class="center fm-dup">Duplicate! "${esc(fm.dup.text)}" was already said. Try again!</p>` : ''}`;
       actions = '<button class="btn btn-ghost" id="fm-stop">End turn now</button>';
       break;
     }
     case 'reveal1': case 'reveal2':
-      top = '<p class="fm-q">Survey says…</p>';
+      top = `<p class="fm-q">${name(fm.step === 'reveal1' ? fm.p1 : fm.p2)}'s answers. Survey says…</p>`;
       break;
     case 'done':
       top = fm.won
@@ -171,7 +203,7 @@ function renderFastMoney(el, s, players, sendAction) {
   el.innerHTML = `<div class="ff">
     <div class="fm-title">FAST MONEY</div>
     ${top}
-    ${fmBoardHtml(s, players)}
+    ${['play1', 'reveal1'].includes(fm.step) ? fmLiveHtml(s, 0) : ['play2', 'reveal2'].includes(fm.step) ? fmLiveHtml(s, 1) : fm.step === 'done' ? fmBoardHtml(s, players) : ''}
     <div class="ff-actions">${actions}</div></div>`;
   runFmClock(s);
   const on = (id, action) => el.querySelector(id)?.addEventListener('click', () => sendAction(action));

@@ -3,7 +3,7 @@ import { esc, nameOf } from '../../js/ui.js';
 import { roleWithArticle } from './engine.js';
 import { mafiaStyles, ROLE_BLURB } from './shared.js';
 
-let roleShown = false;
+
 
 export function renderPlayer(el, ctx) {
   const { state: s, priv = {}, me, players, sendAction } = ctx;
@@ -30,10 +30,14 @@ export function renderPlayer(el, ctx) {
   const role = priv.role;
 
   const team = (priv.team || []).length ? `<p>Your Mafia team: ${priv.team.map(n).join(', ')}</p>` : '';
-  const roleCard = roleShown || s.phase === 'roles' || s.phase === 'over'
-    ? `<div class="mf-role ${role}"><div>You are</div><h2>${roleWithArticle(role) || '…'}</h2><div>${ROLE_BLURB[role] || ''}</div>${team}
-        ${s.phase !== 'roles' && s.phase !== 'over' ? '<div><button class="btn btn-ghost" id="mf-hide" style="margin-top:.5rem">Hide</button></div>' : ''}</div>`
-    : '<div class="mf-cover"><button class="btn btn-ghost" id="mf-show">Show my role</button></div>';
+  const checks = Object.entries(priv.checks || {});
+  const secrets = `${team}${checks.length ? `<p><b>Your investigations:</b> ${checks.map(([id, r]) => `${n(id)} is ${r}`).join('; ')}</p>` : ''}`;
+  const card = `<div class="mf-role ${role}"><div>You are</div><h2>${roleWithArticle(role) || '…'}</h2><div>${ROLE_BLURB[role] || ''}</div>${secrets}</div>`;
+  // Your role shows until you tap "Got it". After that it's hidden; press and hold to peek.
+  const openCard = (s.phase === 'roles' && !s.ready.includes(me)) || s.phase === 'over';
+  const roleCard = openCard ? card
+    : `<div class="mf-peekbox"><div class="mf-peek-card" hidden>${card}</div>
+        <div class="mf-cover"><button class="btn btn-ghost mf-peek">Hold to see your role</button></div></div>`;
 
   let action = '';
   if (dead && s.phase !== 'over') {
@@ -44,35 +48,40 @@ export function renderPlayer(el, ctx) {
       break;
     case 'night': {
       if (s.nightDone.includes(me) || priv.night !== s.day) {
-        action = `<div class="display-l center">Done for tonight</div>${priv.pick ? `<p class="center muted">You picked ${n(priv.pick)}.</p>` : ''}<p class="center muted">Keep a straight face.</p>`;
+        action = '<div class="display-l center">Done for tonight</div><p class="center muted">Keep a straight face.</p>';
         break;
       }
-      const prompts = {
-        kill: ['Who should the Mafia eliminate?', (id) => !(priv.team || []).includes(id) && id !== me],
-        save: ['Who will you protect tonight?', () => true],
-        check: ['Who will you investigate?', (id) => id !== me],
-        suspect: ['Who do you suspect most?', (id) => id !== me],
-      };
-      const [title, allowed] = prompts[priv.task] || ['Waiting…', () => false];
-      const picks = priv.mafiaPicks || {};
-      action = `<div class="display-l">${title}</div>
-        ${priv.task === 'kill' && Object.keys(picks).length ? `<p class="small muted">Team picks: ${Object.entries(picks).map(([who, t]) => `${n(who)} → ${n(t)}`).join(', ')}</p>` : ''}
-        ${alive.filter(allowed).map((id) => `<button class="choice-btn mf-pick" data-pick="${id}">${n(id)}${id === me ? ' (you)' : ''}</button>`).join('')}`;
+      // Every role sees the same question and the same list, so a peek at someone's phone gives nothing away.
+      // Mafia only: a tiny dot next to a name for each teammate who picked them, and a faint mark on teammates.
+      const picks = priv.task === 'kill' ? priv.mafiaPicks || {} : {};
+      const dots = {};
+      for (const [who, t] of Object.entries(picks)) if (who !== me) dots[t] = (dots[t] || 0) + 1;
+      const mate = new Set(priv.task === 'kill' ? priv.team || [] : []);
+      action = `<div class="display-l">Who do you suspect?</div>
+        ${priv.note ? `<p class="small muted">${esc(priv.note)}</p>` : ''}
+        ${alive.map((id) => `<button class="choice-btn mf-pick" data-pick="${id}">${n(id)}${id === me ? ' (you)' : ''}${mate.has(id) ? '<i class="mf-mate"></i>' : ''}${'<i class="mf-dot"></i>'.repeat(dots[id] || 0)}</button>`).join('')}`;
       break;
     }
     case 'morning':
-      action = '<p class="center">Look at the TV.</p>' + (isVip ? '<div class="row-center"><button class="btn btn-primary" id="mf-day">Start the day</button></div>' : '');
+      action = '<p class="center">Look at the TV.</p>';
       break;
     case 'day': {
-      const mine = s.votes[me];
+      const locked = s.votes[me];
+      const lean = s.leans?.[me];
+      const label = (id) => (id === 'skip' ? 'skip today' : n(id));
+      if (locked) {
+        action = `<div class="display-l">Vote locked in</div><p class="center">You voted ${locked === 'skip' ? 'to skip' : `for <b>${n(locked)}</b>`}.</p><p class="center muted">Waiting for the town…</p>`;
+        break;
+      }
       action = `<div class="display-l">Vote someone out</div>
-        <p class="small muted">${mine ? `You voted ${mine === 'skip' ? 'to skip' : `for ${n(mine)}`}. You can change it until everyone votes.` : 'Everyone can see your vote on the TV.'}</p>
-        ${alive.filter((id) => id !== me).map((id) => `<button class="choice-btn mf-pick ${mine === id ? 'picked' : ''}" data-vote="${id}">${n(id)}</button>`).join('')}
-        <button class="choice-btn mf-pick ${mine === 'skip' ? 'picked' : ''}" data-vote="skip">Skip, nobody today</button>`;
+        <p class="small muted">Tap a name (the TV shows it), then lock it in. Locked votes can't change.</p>
+        ${alive.filter((id) => id !== me).map((id) => `<button class="choice-btn mf-pick ${lean === id ? 'picked' : ''}" data-vote="${id}">${n(id)}</button>`).join('')}
+        <button class="choice-btn mf-pick ${lean === 'skip' ? 'picked' : ''}" data-vote="skip">Skip, nobody today</button>
+        ${lean ? `<button class="btn btn-primary btn-big mf-lock" id="mf-lock">Lock in: ${label(lean)}</button>` : ''}`;
       break;
     }
     case 'verdict':
-      action = '<p class="center">Look at the TV.</p>' + (isVip ? '<div class="row-center"><button class="btn btn-primary" id="mf-night">Night falls…</button></div>' : '');
+      action = '<p class="center">Look at the TV.</p>';
       break;
     case 'over':
       action = `<div class="display-l center">${s.winner === 'town' ? 'The town wins!' : 'The Mafia wins!'}</div>`
@@ -80,18 +89,24 @@ export function renderPlayer(el, ctx) {
       break;
   }
 
-  const checks = Object.entries(priv.checks || {});
-  el.innerHTML = `${roleCard}<div style="margin-top:1rem">${action}</div>
-    ${checks.length ? `<div class="mf-note"><strong>Your investigations:</strong> ${checks.map(([id, r]) => `${n(id)} is ${r}`).join('; ')}</div>` : ''}`;
+  el.innerHTML = `${roleCard}<div style="margin-top:1rem">${action}</div>`;
 
-  el.querySelector('#mf-show')?.addEventListener('click', () => { roleShown = true; renderPlayer(el, ctx); });
-  el.querySelector('#mf-hide')?.addEventListener('click', () => { roleShown = false; renderPlayer(el, ctx); });
+  const peek = el.querySelector('.mf-peek');
+  if (peek) {
+    const box = el.querySelector('.mf-peek-card');
+    const show = (e) => { e.preventDefault(); box.hidden = false; };
+    const hide = () => { box.hidden = true; };
+    peek.addEventListener('pointerdown', show);
+    ['pointerup', 'pointerleave', 'pointercancel', 'blur'].forEach((t) => peek.addEventListener(t, hide));
+    peek.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
   el.querySelector('#mf-ready')?.addEventListener('click', () => sendAction('game:ready'));
   el.querySelectorAll('[data-pick]').forEach((b) => (b.onclick = () => {
     el.querySelectorAll('[data-pick]').forEach((x) => (x.disabled = true));
     sendAction('game:night', { id: b.dataset.pick });
   }));
-  el.querySelectorAll('[data-vote]').forEach((b) => (b.onclick = () => sendAction('game:vote', { id: b.dataset.vote })));
+  el.querySelectorAll('[data-vote]').forEach((b) => (b.onclick = () => sendAction('game:lean', { id: b.dataset.vote })));
+  el.querySelector('#mf-lock')?.addEventListener('click', () => { el.querySelector('#mf-lock').disabled = true; sendAction('game:vote', { id: s.leans[me] }); });
   el.querySelector('#mf-day')?.addEventListener('click', () => sendAction('game:start-day'));
   el.querySelector('#mf-night')?.addEventListener('click', () => sendAction('game:next-night'));
   el.querySelector('#mf-again')?.addEventListener('click', () => sendAction('game:play-again'));
@@ -111,30 +126,38 @@ function renderNarrator(el, ctx) {
       body = `<p>${s.ready.length} of ${s.seats.length} have checked their role.</p>${btn('mf-start', 'Start the first night')}`;
       break;
     case 'night': {
-      const picks = priv.mafiaPicks || {};
-      const line = (label, who, pick, extra = '') => `<li><b>${label}</b> ${who.map(n).join(', ') || '<span class="muted">nobody alive</span>'}: ${pick ? n(pick) : '<span class="muted">waiting…</span>'}${extra}</li>`;
-      const mafiaPick = Object.values(picks);
-      const check = priv.check;
-      body = `<p class="muted">Script: “Everyone close your eyes… Mafia, open your eyes and choose…”</p>
-        <ul class="mf-script">
-          <li><b>Mafia</b> ${ofRole('mafia').map(n).join(', ')}: ${mafiaPick.length ? Object.entries(picks).map(([a, t]) => `${n(a)} → ${n(t)}`).join(', ') : '<span class="muted">waiting…</span>'}</li>
-          ${line('Doctor', ofRole('doctor'), priv.save, priv.lastSaved ? ` <span class="muted">(can't save ${n(priv.lastSaved)} again)</span>` : '')}
-          ${line('Detective', ofRole('detective'), check, check ? ` → <b>${roles[check] === 'mafia' ? 'Mafia' : 'not Mafia'}</b>` : '')}
-        </ul>
+      // Everyone's pick tonight, real tasks and cover taps alike.
+      const picks = { ...(priv.suspects || {}), ...(priv.mafiaPicks || {}) };
+      for (const id of ofRole('doctor')) if (priv.save) picks[id] = priv.save;
+      for (const id of ofRole('detective')) if (priv.check) picks[id] = priv.check;
+      const what = { mafia: 'kill', doctor: 'save', detective: 'check', villager: 'suspects' };
+      const order = ['mafia', 'doctor', 'detective', 'villager'];
+      const rows = [...alive].sort((a, b) => order.indexOf(roles[a]) - order.indexOf(roles[b])).map((id) => {
+        const t = picks[id];
+        const extra = roles[id] === 'detective' && t ? ` → <b>${roles[t] === 'mafia' ? 'Mafia' : 'not Mafia'}</b>` : roles[id] === 'doctor' && priv.lastSaved ? ` <span class="muted">(can't save ${n(priv.lastSaved)} again)</span>` : '';
+        return `<li><b>${n(id)}</b> <span class="muted">${ROLE_NAME[roles[id]]}, ${what[roles[id]]}</span>: ${t ? n(t) : '<span class="muted">waiting…</span>'}${extra}</li>`;
+      }).join('');
+      body = `<ul class="mf-script">${rows}</ul>
         <p>${s.nightDone.length} of ${alive.length} phones done.</p>
         ${btn('mf-wake', s.nightDone.length >= alive.length ? 'Morning! See what happened' : 'End the night now', s.nightDone.length >= alive.length)}`;
       break;
     }
     case 'morning': {
       const m = s.morning;
-      body = `<div class="mf-note"><b>${m.killed ? `${n(m.killed)} was killed (${ROLE_NAME[m.role]})` : m.saved ? 'The Mafia attacked, but the Doctor saved them' : 'Nobody was attacked'}</b></div>
+      body = `<div class="mf-note"><b>${m.killed ? `${n(m.killed)} was killed (${ROLE_NAME[m.role]})` : m.saved ? `The Mafia attacked ${n(m.savedWho)}, but the Doctor saved them` : 'Nobody was attacked'}</b></div>
         <p class="muted">Tell the story your way, then put it on the TV.</p>
         ${s.shown ? '' : btn('mf-show', 'Show it on the TV')}${btn('mf-day', 'Start the day', s.shown)}`;
       break;
     }
-    case 'day':
-      body = `<p>${Object.keys(s.votes).length} of ${alive.length} have voted. Votes show on the TV as they come in.</p>${btn('mf-close', 'Close the vote', false)}`;
+    case 'day': {
+      const rows = alive.map((id) => {
+        const v = s.votes[id], l = s.leans?.[id];
+        const who = (t) => (t === 'skip' ? 'skip' : n(t));
+        return `<li><b>${n(id)}</b> <span class="muted">${ROLE_NAME[roles[id]]}</span>: ${v ? `<b>${who(v)}</b> 🔒` : l ? `${who(l)} <span class="muted">(not locked)</span>` : '<span class="muted">thinking…</span>'}</li>`;
+      }).join('');
+      body = `<p>${Object.keys(s.votes).length} of ${alive.length} locked in. More than half on one name ends the vote.</p><ul class="mf-script">${rows}</ul>${btn('mf-close', 'Close the vote', false)}`;
       break;
+    }
     case 'verdict': {
       const v = s.verdict;
       body = `<div class="mf-note"><b>${v.out ? `${n(v.out)} is voted out (${ROLE_NAME[v.role]})` : 'No decision, nobody is out'}</b></div>

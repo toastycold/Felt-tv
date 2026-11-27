@@ -41,9 +41,20 @@ export function renderBoard(el, { state: s, players, sendAction, media }) {
         <button class="btn btn-ghost" id="ts-prev">Back</button>
         <button class="btn btn-primary btn-big" id="ts-next">${s.revealPage < book.pages.length ? 'Next page' : s.revealBook < s.books.length - 1 ? 'Next sketchbook' : 'Finish'}</button>
       </div>`;
+  } else if (s.gallery >= 0 && s.books?.[s.gallery]) {
+    // View all sketchbooks: one whole book at a time, every page side by side.
+    const book = s.books[s.gallery];
+    const pages = [0, ...book.pages.map((_, k) => k + 1)];
+    body = `<div class="center muted">Sketchbook ${s.gallery + 1} of ${s.books.length}: ${esc(nameOf(book.owner, players))}'s</div>
+      <div class="ts-gallery" style="--n:${Math.min(pages.length, 4)}">${pages.map((k) => entryHtml(book, k, players)).join('')}</div>
+      <div class="row-center" style="margin-top:1rem">
+        <button class="btn btn-ghost" id="ts-gprev" ${s.gallery === 0 ? 'disabled' : ''}>Previous book</button>
+        ${s.gallery < s.books.length - 1 ? '<button class="btn btn-primary btn-big" id="ts-gnext">Next book</button>' : '<button class="btn btn-primary btn-big" id="ts-gdone">Done</button>'}
+      </div>`;
   } else {
     body = `<div class="display-xl center">That's every sketchbook!</div>
-      <div class="row-center"><button class="btn btn-primary btn-big" id="ts-again">Play again</button></div>`;
+      <p class="lede center">Everyone can scroll through all of them on their phones too.</p>
+      <div class="row-center"><button class="btn btn-primary btn-big" id="ts-gallery">View all sketchbooks</button><button class="btn btn-ghost" id="ts-again">Play again</button></div>`;
   }
 
   el.innerHTML = body;
@@ -52,4 +63,8 @@ export function renderBoard(el, { state: s, players, sendAction, media }) {
   el.querySelector('#ts-next')?.addEventListener('click', () => sendAction('game:reveal-next'));
   el.querySelector('#ts-prev')?.addEventListener('click', () => sendAction('game:reveal-prev'));
   el.querySelector('#ts-again')?.addEventListener('click', () => sendAction('game:play-again'));
+  el.querySelector('#ts-gallery')?.addEventListener('click', () => sendAction('game:gallery', { i: 0 }));
+  el.querySelector('#ts-gnext')?.addEventListener('click', () => sendAction('game:gallery', { i: s.gallery + 1 }));
+  el.querySelector('#ts-gprev')?.addEventListener('click', () => sendAction('game:gallery', { i: s.gallery - 1 }));
+  el.querySelector('#ts-gdone')?.addEventListener('click', () => sendAction('game:gallery', { i: -1 }));
 }

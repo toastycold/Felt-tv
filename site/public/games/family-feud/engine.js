@@ -8,8 +8,19 @@ const TEAMS = ['red', 'blue'];
 const other = (t) => (t === 'red' ? 'blue' : 'red');
 const MULTS = [1, 1, 2, 3];
 const FM_GOAL = 200;
-const FM_TIME = [20000, 25000];   // player 1, player 2 (ms)
-const FM_REVEAL_MS = 1100;        // pause between each answer and each point total being revealed
+const FM_TOTAL = 60000;           // one 60-second clock shared by both players
+const FM_MIN_P2 = 10000;          // player 2 always gets at least this much
+const FM_REVEAL_MS = 1300;        // pause between each point total being revealed
+
+// ---------- surveys this TV has already shown ----------
+const SEEN_KEY = 'ff-seen';
+function seenSurveys() { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); } }
+function markSeen(q) {
+  try {
+    const seen = [...seenSurveys().add(q)];
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seen.length > SURVEYS.length - 6 ? seen.slice(-20) : seen));   // start over when nearly all are used
+  } catch { /* no storage: fine */ }
+}
 
 // ---------- answer matching ----------
 const FILLER = new Set(['a', 'an', 'the', 'my', 'your', 'some', 'to', 'of', 'go']);
@@ -19,23 +30,32 @@ function norm(s) {
     .map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w))
     .join(' ');
 }
+/** Edit distance, counting a swapped pair of letters as one typo. */
 function lev(a, b) {
-  if (Math.abs(a.length - b.length) > 2) return 9;
+  if (Math.abs(a.length - b.length) > 3) return 9;
   const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
   for (let j = 1; j <= b.length; j++) d[0][j] = j;
   for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
     d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
   }
   return d[a.length][b.length];
 }
+const typos = (n) => (n >= 9 ? 2 : n >= 4 ? 1 : 0);   // how many slips we forgive for a word this long
+const squash = (x) => x.replace(/ /g, '');
 /** How well a guess matches one way of saying an answer: 0 = no, higher = better. */
 function score(g, a) {
   if (!g || !a) return 0;
-  if (g === a) return 1000;
+  if (g === a || squash(g) === squash(a)) return 1000;
   const pad = (x) => ` ${x} `;
   if ((a.length >= 3 && pad(g).includes(pad(a))) || (g.length >= 4 && pad(a).includes(pad(g)))) return 100 + Math.min(g.length, a.length);
-  const tol = a.length >= 9 ? 2 : a.length >= 5 ? 1 : 0;
-  return tol > 0 && lev(g, a) <= tol ? 10 : 0;
+  // the whole thing, with a typo or two ("mashed potatos", "turkye")
+  const whole = lev(squash(g), squash(a));
+  if (whole <= typos(squash(a).length)) return 60 - whole;
+  // one key word, with a typo ("cranbery" for "cranberry sauce")
+  const gw = g.split(' '), aw = a.split(' ').filter((w) => w.length >= 5);
+  for (const w of aw) for (const x of gw) if (x.length >= 4 && lev(w, x) <= typos(w.length)) return 20;
+  return 0;
 }
 /** Index of the answer that best matches the guess, or -1. */
 export function matchAnswer(guess, answers) {
@@ -121,15 +141,23 @@ export default class FamilyFeudEngine extends BaseGameEngine {
       const total = 100;
       return { q: x.text, answers: answers.map((text, i) => ({ text, points: Math.max(2, Math.round((total * (answers.length - i)) / ((answers.length * (answers.length + 1)) / 2))), alts: [] })) };
     }).filter((x) => x.q && x.answers.length >= 3);
-    this.secret.deck = shuffle([...SURVEYS, ...extra]);
+    this.secret.deck = this.freshDeck(extra);
     Object.assign(s, { scores: { red: 0, blue: 0 }, round: 0, winner: '', roundWinner: '' });
     this.startRound();
   }
 
+  /** Surveys this TV hasn't shown yet go on top; ones you've already played go to the bottom. */
+  freshDeck(extra = []) {
+    const seen = seenSurveys();
+    const all = shuffle([...SURVEYS, ...extra]);
+    return [...all.filter((x) => seen.has(x.q)), ...all.filter((x) => !seen.has(x.q))];   // pop() takes from the end
+  }
+
   startRound() {
     const s = this.state;
-    if (!this.secret.deck.length) this.secret.deck = shuffle([...SURVEYS]);
+    if (!this.secret.deck.length) this.secret.deck = this.freshDeck();
     const survey = this.secret.deck.pop();
+    markSeen(survey.q);
     this.secret.answers = survey.answers;
     s.round += 1;
     s.mult = MULTS[Math.min(s.round, MULTS.length) - 1];
@@ -142,7 +170,7 @@ export default class FamilyFeudEngine extends BaseGameEngine {
 
   startFaceoff() {
     const s = this.state;
-    s.faceoff = { red: this.pick('red'), blue: this.pick('blue'), done: [] };
+    s.faceoff = { red: this.pick('red'), blue: this.pick('blue'), done: [], turn: '', missed: '' };
     this.secret.faceoff = {};
     s.phase = 'faceoff';
     s.current = '';
@@ -159,6 +187,16 @@ export default class FamilyFeudEngine extends BaseGameEngine {
   }
 
   boardCleared() { return this.state.board.every(Boolean); }
+
+  winFaceoff(win, text) {
+    const s = this.state;
+    s.control = win;
+    s.message = `${this.tn(win)} wins the face-off with "${text}"!`;
+    if (this.boardCleared()) return this.endRound(win);
+    s.phase = 'play';
+    s.waiting = [];
+    s.current = this.pick(win);
+  }
 
   resolveFaceoff() {
     const s = this.state;
@@ -223,7 +261,7 @@ export default class FamilyFeudEngine extends BaseGameEngine {
       step: 'pick', team: s.winner, p1: '', p2: '',
       qs: qs.map((q) => q.question || q.q),
       a: [Array(5).fill(null), Array(5).fill(null)],   // a[turn][q] = { text, points }
-      order: [], endsAt: 0, shown: [0, 0], dup: null, total: 0, won: false,
+      order: [], endsAt: 0, left: FM_TOTAL, shown: [0, 0], dup: null, total: 0, won: false,
     };
     const fam = s.teams[s.winner] || [];
     if (fam.length === 1) { s.fm.p1 = s.fm.p2 = fam[0]; s.fm.step = 'ready1'; }
@@ -237,12 +275,13 @@ export default class FamilyFeudEngine extends BaseGameEngine {
     const t = this.fmTurn();
     s.fm.step = `play${t + 1}`;
     s.fm.order = [0, 1, 2, 3, 4];
-    s.fm.endsAt = Date.now() + FM_TIME[t];
+    const time = t ? Math.max(FM_MIN_P2, s.fm.left) : FM_TOTAL;
+    s.fm.endsAt = Date.now() + time;
     s.fm.dup = null;
     s.current = t ? s.fm.p2 : s.fm.p1;
     s.waiting = [];
     clearTimeout(this.fmTimer);
-    this.fmTimer = setTimeout(() => { if (s.fm?.step === `play${t + 1}`) { this.fmReveal(); this.sync(); } }, FM_TIME[t] + 600);
+    this.fmTimer = setTimeout(() => { if (s.fm?.step === `play${t + 1}`) { this.fmReveal(); this.sync(); } }, time + 600);
   }
 
   fmAnswer(qi, text) {
@@ -268,6 +307,7 @@ export default class FamilyFeudEngine extends BaseGameEngine {
     const t = this.fmTurn();
     const fm = s.fm;
     clearTimeout(this.fmTimer);
+    if (t === 0) fm.left = Math.max(0, fm.endsAt - Date.now());   // whatever player 1 didn't use goes to player 2
     fm.a[t] = fm.a[t].map((x) => x || { text: '', points: 0, idx: -1 });
     fm.step = `reveal${t + 1}`;
     fm.order = []; fm.dup = null;
@@ -275,9 +315,8 @@ export default class FamilyFeudEngine extends BaseGameEngine {
     const tick = () => {
       if (!s.fm || s.fm.step !== `reveal${t + 1}`) return;
       fm.shown[t] += 1;
-      const i = Math.ceil(fm.shown[t] / 2) - 1;
-      if (fm.shown[t] % 2 === 0) fm.total += fm.a[t][i].points;
-      if (fm.shown[t] >= 10) {
+      fm.total += fm.a[t][fm.shown[t] - 1].points;
+      if (fm.shown[t] >= 5) {
         if (t === 0) {
           fm.step = fm.total >= FM_GOAL ? 'done' : 'ready2';
           fm.won = fm.total >= FM_GOAL;
@@ -324,10 +363,28 @@ export default class FamilyFeudEngine extends BaseGameEngine {
         if (s.phase !== 'faceoff' || !text) return;
         const team = TEAMS.find((t) => s.faceoff[t] === me);
         if (!team || this.secret.faceoff[team]) return;
-        this.secret.faceoff[team] = { text, rank: matchAnswer(text, this.secret.answers), at: meta.timestamp || Date.now() };
+        if (s.faceoff.turn && s.faceoff.turn !== team) return;   // the other family already missed: not your turn
+        // Fastest answer decides. On the board: that family takes control. Not on it: the other family gets a try.
+        const rank = matchAnswer(text, this.secret.answers);
+        this.secret.faceoff[team] = { text, rank };
         s.faceoff.done.push(me);
         s.waiting = s.waiting.filter((x) => x !== me);
-        if (TEAMS.every((t) => this.secret.faceoff[t] || !s.faceoff[t])) this.resolveFaceoff();
+        const rival = other(team);
+        if (rank >= 0) {
+          this.reveal(rank);
+          s.last = { team, text, ok: true, points: this.secret.answers[rank].points };
+          this.winFaceoff(team, text);
+        } else if (!s.faceoff.turn && s.faceoff[rival]) {
+          s.last = { team, text, ok: false };
+          s.faceoff.turn = rival;
+          s.faceoff.missed = team;
+          s.waiting = [s.faceoff[rival]];
+          s.message = `"${text}" isn't on the board! ${this.tn(rival)}, it's your chance.`;
+        } else {
+          s.last = { team, text, ok: false };
+          s.message = `Nobody found one. "${this.secret.faceoff[rival]?.text || '…'}" and "${text}" aren't on the board. Next pair!`;
+          this.startFaceoff();
+        }
         break;
       }
 
@@ -368,13 +425,22 @@ export default class FamilyFeudEngine extends BaseGameEngine {
         break;
       case 'game:skip-faceoff': {
         if (s.phase !== 'faceoff' || !host) return;
-        // Someone is stuck: whoever already answered decides it, otherwise a fresh pair.
-        if (Object.keys(this.secret.faceoff).length) {
-          for (const t of TEAMS) if (!this.secret.faceoff[t]) s.faceoff[t] = '';
-          this.resolveFaceoff();
-        } else this.startFaceoff();
+        // Someone is stuck: bring up a fresh pair.
+        s.message = 'New face-off pair!';
+        this.startFaceoff();
         break;
       }
+      case 'game:skip-survey':   // TV: "we've seen this one" (only before anyone answers)
+        if (s.phase !== 'faceoff' || !host || s.board.some(Boolean)) return;
+        if (!this.secret.deck.length) this.secret.deck = this.freshDeck();
+        {
+          const survey = this.secret.deck.pop();
+          markSeen(survey.q);
+          this.secret.answers = survey.answers;
+          Object.assign(s, { question: survey.q, board: survey.answers.map(() => null), message: 'New survey!', last: null });
+          this.startFaceoff();
+        }
+        break;
       case 'game:next-round':
         if (s.phase !== 'reveal' || !host) return;
         this.startRound();

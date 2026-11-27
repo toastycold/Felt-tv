@@ -20,7 +20,7 @@ export function renderPlayer(el, { state: s, priv = {}, me, players, sendAction 
     const head = { correct: 'Got it!', wrong: 'Not quite', skip: 'Skipped' }[s.outcome];
     html = `<div class="jo-big jo-outcome ${s.outcome}">${head}</div>
       <div class="jo-word">${esc(s.word)}</div>
-      <div class="jo-row"><button class="btn btn-primary btn-big" id="jo-next">${s.cardsLeft ? 'Next card' : 'See final score'}</button></div>`;
+      `;
   } else if (isGuesser) {
     if (s.phase === 'guess') {
       html = `<div class="jo-big">Your guess</div>

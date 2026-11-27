@@ -13,12 +13,21 @@ const ROW = { idle: 0, thinking: 1, cheering: 2, eliminated: 3, waving: 4 };
 export const personId = (name) => String(name || '').trim().toLowerCase();
 export const hasSprite = (person) => HAS_SPRITE.has(personId(person));
 
+const fellAt = new Map();
+
 /** HTML for one animated character. Returns '' when the person has no sprite. */
 export function spriteHtml(person, pose = 'idle', size = 96) {
   const id = personId(person);
   if (!HAS_SPRITE.has(id)) return '';
   const row = ROW[pose] ?? 0;
-  return `<span class="sprite pose-${pose}" style="--s:${size}px;--row:${row};background-image:url(people/${id}.webp)" aria-hidden="true"></span>`;
+  // Screens redraw often; a character who already fell over stays down instead of falling again.
+  let cls = `pose-${pose}`;
+  if (pose === 'eliminated') {
+    const t = fellAt.get(id);
+    if (t == null) fellAt.set(id, Date.now());
+    else if (Date.now() - t > 800) cls = 'pose-fallen';
+  } else fellAt.delete(id);
+  return `<span class="sprite ${cls}" style="--s:${size}px;--row:${row};background-image:url(people/${id}.webp)" aria-hidden="true"></span>`;
 }
 
 const inList = (list, id) => (Array.isArray(list) ? list.includes(id) : !!(list && list[id]));

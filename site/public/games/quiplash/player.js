@@ -35,7 +35,7 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
   } else if (s.phase === 'matchup-result') {
     const pts = s.result?.points?.[me];
     html = pts !== undefined ? `<div class="display-l">+${pts}</div>${s.result.quiplash === me ? '<p>Quiplash! Everyone picked yours.</p>' : ''}` : '<div class="display-l">Look at the TV</div>';
-    if (isVip) html += '<button class="btn btn-ghost" id="ql-next">Next matchup</button>';
+
   } else if (s.phase === 'scores' || s.phase === 'over') {
     html = `<div class="display-l">${s.phase === 'over' ? 'Final scores' : 'Scores'}</div>${scoreboard(players.map((p) => ({ name: p.name, score: s.scores[p.id] || 0 })))}`;
     if (isVip && s.phase === 'scores') html += `<button class="btn btn-primary btn-big" id="ql-next">${s.round === 1 ? 'Start round 2' : 'Start the final round'}</button>`;

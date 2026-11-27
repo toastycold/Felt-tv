@@ -35,6 +35,15 @@ export function paintAll(el, media) {
 
 export function drawStyles() {
   injectStyles('telestrations', `
+    .ts-gallery { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 1rem; margin-top: .8rem; align-items: start; }
+    .ts-gallery .ts-entry .words { font-size: clamp(1.2rem, 3.6vh, 2rem); }
+    .ts-book { background: var(--felt-deep); border-radius: 14px; padding: .6rem; margin-top: .8rem; }
+    .ts-book h3 { margin: 0 0 .5rem; font-size: 1rem; }
+    .ts-book-pages { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .ts-mini { background: var(--card); color: var(--ink); border-radius: 10px; padding: .35rem; text-align: center; font: 800 1rem var(--display); }
+    .ts-mini.word { display: grid; place-items: center; min-height: 5rem; padding: .5rem; }
+    .ts-mini small { display: block; font: 600 .75rem var(--body); color: var(--ink-soft); margin-top: .2rem; }
+    .ts-mini canvas.ts-art { box-shadow: none; border-radius: 6px; }
     .ts-pad { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 0 var(--card-edge); touch-action: none; }
     .ts-pad canvas, canvas.ts-art { width: 100%; height: 100%; display: block; border-radius: 12px; background: #fffdf6; }
     canvas.ts-art { aspect-ratio: 4 / 3; height: auto; box-shadow: 0 5px 0 var(--card-edge); }

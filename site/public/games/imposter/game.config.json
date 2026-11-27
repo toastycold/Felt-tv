@@ -1,0 +1,18 @@
+{
+  "id": "imposter",
+  "name": "Imposter",
+  "version": "1.0.0",
+  "subtitle": "Everyone knows the secret word except one.",
+  "description": "Everyone's phone shows the same secret word, except the Imposter's, which only shows the category. Take turns giving a one-word clue: close enough to prove you know the word, vague enough not to give it away. Then vote for who you think is faking it. If the Imposter gets caught, they still win by guessing the word.",
+  "tags": ["Party", "Word", "Social deduction"],
+  "players": { "min": 3, "max": 12, "recommended": 6 },
+  "averageDurationMinutes": 15,
+  "difficultyToLearn": "Easy",
+  "cover": "cover.webp",
+  "suggestions": [
+    { "kind": "word", "label": "A secret word", "fields": [
+      { "key": "text", "label": "Word", "placeholder": "Pancakes" },
+      { "key": "category", "label": "Category", "placeholder": "Breakfast" }
+    ] }
+  ]
+}

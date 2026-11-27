@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="stylesheet" href="css/style.css?v=11">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1f4d3a">
   <link rel="icon" type="image/png" href="icons/favicon.png">
@@ -40,6 +40,7 @@
         <p>It's on the TV. Type it in to join.</p>
         <div id="tiles"></div>
         <button class="btn btn-primary btn-big">Join the game</button>
+        <button type="button" class="btn btn-ghost qr-btn" id="scan-qr" hidden>📷 Scan the code on the TV</button>
       </form>
     </section>
 
@@ -67,6 +68,14 @@
       const code = getCode();
       if (code.length !== 4) { document.querySelector('#tiles input:not([value])')?.focus(); return; }
       location.href = `play.html?code=${code}`;
+    };
+    // Phones: scan the TV's QR code instead of typing
+    const scan = document.querySelector('#scan-qr');
+    scan.hidden = !(navigator.mediaDevices?.getUserMedia && matchMedia('(pointer: coarse)').matches);
+    scan.onclick = async () => {
+      const { scanForCode } = await import('./js/qr-scan.js');
+      const code = await scanForCode();
+      if (code) location.href = `play.html?code=${code}`;
     };
 
     // Game shelf

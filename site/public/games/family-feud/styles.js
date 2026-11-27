@@ -84,6 +84,24 @@ export function feudStyles() {
     .fm-total { text-align: right; font: 800 clamp(1.2rem, 4vh, 1.8rem) var(--display); color: #fff; margin-top: .45rem; padding-right: .3rem; }
     .fm-total b { color: var(--gold); font-size: 1.4em; margin-left: .4rem; } .fm-total small { opacity: .7; margin-left: .3rem; }
     .fm-total.win b { color: #8be38b; }
+    .fm-live { display: grid; gap: clamp(.25rem, .9vh, .5rem); }
+    .fm-row { display: grid; grid-template-columns: 1.3fr 1fr 3.4rem; gap: .6rem; align-items: center; padding: .15rem .3rem; border-radius: 10px; }
+    .fm-row.now { background: rgba(242,194,48,.18); box-shadow: inset 0 0 0 2px var(--gold); }
+    .fm-qtext { color: #e6eeff; font: 700 clamp(.95rem, 2.8vh, 1.35rem)/1.2 var(--body); }
+    .fm-ans { min-height: clamp(2rem, 6vh, 2.9rem); display: flex; align-items: center; padding: .1rem .8rem; border-radius: 10px;
+      background: linear-gradient(#2148a8, #173a8c); color: #fff; font: 800 clamp(1rem, 3.2vh, 1.5rem) var(--display); text-transform: uppercase; }
+    .fm-ans i { font: italic 600 .9em var(--body); text-transform: none; opacity: .65; }
+    .fm-ans.in { animation: ff-flip .35s ease; }
+    .fm-row .pts { height: 100%; min-height: clamp(2rem, 6vh, 2.9rem); display: grid; place-items: center; border-radius: 10px; background: #0d1f4d; color: var(--gold);
+      font: 900 clamp(1.1rem, 3.4vh, 1.6rem) var(--display); }
+    .fm-row .pts.on { animation: ff-flip .4s ease; } .fm-row .pts.zero { color: #ff7a70; }
+    .fm-sum.fm-grid { grid-template-columns: 1.4fr 1fr 1fr; }
+    .fm-sum.fm-names { display: grid; grid-template-columns: 1.4fr 1fr 1fr; }
+    .fm-q-label { color: #e6eeff; font: 700 clamp(.85rem, 2.4vh, 1.15rem)/1.2 var(--body); display: flex; align-items: center; }
+    .ff-phone .fm-row { grid-template-columns: 1fr 1fr 2.4rem; gap: .3rem; }
+    .ff-phone .fm-qtext { font-size: .8rem; } .ff-phone .fm-ans { font-size: .85rem; min-height: 2rem; padding: .1rem .4rem; }
+    .ff-phone .fm-sum.fm-grid, .ff-phone .fm-sum.fm-names { grid-template-columns: 1.2fr 1fr 1fr; }
+    .ff-phone .fm-q-label { font-size: .72rem; }
     .fm-clock { display: inline-grid; place-items: center; min-width: 2.2em; padding: .05em .3em; border-radius: 14px; background: #0d1f4d; color: var(--gold);
       border: 3px solid var(--gold); font: 900 clamp(2.4rem, 9vh, 4rem)/1.1 var(--display); }
     .fm-clock.low { color: #ff6b5e; border-color: #ff6b5e; }

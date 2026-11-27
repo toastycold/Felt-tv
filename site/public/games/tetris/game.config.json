@@ -16,5 +16,6 @@
   },
   "averageDurationMinutes": 5,
   "difficultyToLearn": "Easy",
-  "cover": "cover.webp"
+  "cover": "cover.webp",
+  "cast": false
 }

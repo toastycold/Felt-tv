@@ -2,7 +2,7 @@ import { injectStyles, esc, nameOf } from '../../js/ui.js';
 import { ROLE } from './engine.js';
 
 // Flip to true once the painted art is in games/mafia/art/ (see ART-LIST.txt).
-export const ART_READY = false;
+export const ART_READY = true;
 export const art = (name) => (ART_READY ? `url(${new URL(`./art/${name}.webp`, import.meta.url).href})` : 'none');
 
 export const ROLE_BLURB = {
@@ -35,6 +35,17 @@ export function mafiaStyles() {
     .mf-person .votes { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .35rem; }
     .mf-chip { font-size: .75rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: #d6453d; color: #fff; }
     .mf-chip.skip { background: #6b6355; }
+    .mf-chip.lean { background: transparent; color: #d6453d; box-shadow: inset 0 0 0 1.5px #d6453d; opacity: .8; }
+    .mf-counts { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin: .3rem 0 .5rem; }
+    .mf-count { padding: .3rem .8rem; border-radius: 99px; background: rgba(255,255,255,.14); font: 700 clamp(1rem, 2.6vh, 1.3rem) var(--body); }
+    .mf-count b { font: 900 1.25em var(--display); margin-right: .15rem; }
+    .mf-count.mafia { background: rgba(214,69,61,.85); color: #fff; }
+    /* Mafia's quiet signals: a faint mark on teammates, a tiny dot per teammate pick. Easy to miss over a shoulder. */
+    .mf-mate { display: inline-block; width: 5px; height: 5px; margin-left: .45rem; border-radius: 1px; transform: rotate(45deg); background: currentColor; opacity: .28; vertical-align: middle; }
+    .mf-dot { display: inline-block; width: 5px; height: 5px; margin-left: .3rem; border-radius: 50%; background: currentColor; opacity: .3; vertical-align: middle; }
+    .mf-lock { width: 100%; margin-top: .6rem; }
+    .mf-peek { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    .mf-peekbox .mf-peek-card:not([hidden]) + .mf-cover { margin-top: .5rem; }
     .mf-role { border-radius: 16px; padding: 1rem; text-align: center; color: #fff; background-size: cover; background-position: center top; min-height: 15rem;
       display: flex; flex-direction: column; justify-content: flex-end; gap: .25rem; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
     .mf-role h2 { font-size: 2.2rem; margin: 0; }
@@ -53,16 +64,20 @@ export function mafiaStyles() {
 /** Grid of everyone, showing who's dead (with their revealed role) and optionally day votes. */
 export function peopleHtml(s, players, { votes = false, done = false } = {}) {
   const votedFor = {};
-  if (votes) for (const [voter, t] of Object.entries(s.votes || {})) (votedFor[t] ||= []).push(voter);
+  if (votes) {
+    for (const [voter, t] of Object.entries(s.votes || {})) (votedFor[t] ||= []).push({ voter, locked: true });
+    for (const [voter, t] of Object.entries(s.leans || {})) (votedFor[t] ||= []).push({ voter, locked: false });
+  }
   return `<div class="mf-people">${s.seats.map((id) => {
     const dead = s.dead.includes(id);
     const role = s.reveals?.[id] || (s.roles ? s.roles[id] : '');
     const voters = votedFor[id] || [];
-    const myVote = votes ? s.votes?.[id] : '';
+    const myVote = votes ? s.votes?.[id] || s.leans?.[id] : '';
+    const isLocked = votes && s.votes?.[id];
     return `<div class="mf-person ${dead ? 'dead' : ''} ${done && s.nightDone?.includes(id) ? 'done' : ''}">
       <div class="n">${esc(nameOf(id, players))}</div>
-      <div class="s">${dead ? `Dead · ${ROLE[role] || ''}` : role && s.phase === 'over' ? ROLE[role] : myVote ? `Voted: ${myVote === 'skip' ? 'skip' : esc(nameOf(myVote, players))}` : ''}</div>
-      ${voters.length ? `<div class="votes">${voters.map((v) => `<span class="mf-chip">${esc(nameOf(v, players))}</span>`).join('')}</div>` : ''}
+      <div class="s">${dead ? `Dead · ${ROLE[role] || ''}` : role && s.phase === 'over' ? ROLE[role] : myVote ? `${isLocked ? 'Locked:' : 'Leaning:'} ${myVote === 'skip' ? 'skip' : esc(nameOf(myVote, players))}` : ''}</div>
+      ${voters.length ? `<div class="votes">${voters.map((v) => `<span class="mf-chip ${v.locked ? '' : 'lean'}">${esc(nameOf(v.voter, players))}${v.locked ? ' 🔒' : ''}</span>`).join('')}</div>` : ''}
     </div>`;
   }).join('')}</div>`;
 }

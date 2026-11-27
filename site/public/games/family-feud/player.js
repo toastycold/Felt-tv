@@ -1,7 +1,7 @@
 // Phone view for Family Feud: pick a team, then type answers when it's your turn.
 import { esc, nameOf, setHtmlKeepingInputs } from '../../js/ui.js';
 import { feudStyles } from './styles.js';
-import { teamName, boardHtml, strikesHtml, lastHtml, fmBoardHtml, runFmClock } from './shared.js';
+import { teamName, boardHtml, strikesHtml, lastHtml, fmBoardHtml, fmLiveHtml, runFmClock } from './shared.js';
 
 const answerForm = (id, button) => `
   <form id="${id}">
@@ -51,7 +51,9 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
   if (s.phase === 'faceoff') {
     const mine = s.faceoff.red === me || s.faceoff.blue === me;
     const done = (s.faceoff.done || []).includes(me);
-    if (mine && !done) { headline = "You're in the face-off!"; action = answerForm('ff-form', 'Lock it in'); }
+    const myTurn = mine && !done && (!s.faceoff.turn || s.faceoff[s.faceoff.turn] === me);
+    if (myTurn) { headline = s.faceoff.turn ? "They missed! Your turn: name an answer." : "Face-off! Be the first to answer!"; action = answerForm('ff-form', 'Buzz in'); }
+    else if (mine && !done) headline = 'They buzzed in first. Watch the TV!';
     else if (mine) headline = 'Locked in. Watch the TV.';
     else headline = `Face-off: ${esc(nameOf(s.faceoff.red, players))} vs ${esc(nameOf(s.faceoff.blue, players))}`;
   } else if (s.phase === 'play') {
@@ -63,7 +65,7 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
     else headline = `${teamName(s, other)} is trying to steal…`;
   } else if (s.phase === 'reveal') {
     headline = esc(s.message);
-    if (isVip) action = '<div class="ff-actions"><button class="btn btn-primary btn-big" id="ff-next">Next round</button></div>';
+
   } else if (s.phase === 'over') {
     headline = s.winner === 'tie' ? "It's a tie!" : s.winner === team ? 'Your family wins! 🦃' : `${teamName(s, s.winner)} won`;
     if (isVip) action = `<div class="ff-actions">${s.winner !== 'tie' ? '<button class="btn btn-primary btn-big" id="ff-fm">Play Fast Money!</button>' : ''}
@@ -139,7 +141,7 @@ function renderFastMoney(el, s, me, players, sendAction, team, isVip) {
   } else if (step === 'ready1' || step === 'ready2') {
     const up = step === 'ready1' ? fm.p1 : fm.p2;
     body = up === me
-      ? `<h2>You're up!</h2><p>${step === 'ready1' ? '20' : '25'} seconds for 5 questions. Type fast! Pass if you're stuck and come back to it.</p>
+      ? `<h2>You're up!</h2><p>${step === 'ready1' ? '60 seconds for 5 questions. Whatever time you save goes to your partner.' : `${Math.round(Math.max(10000, fm.left) / 1000)} seconds for 5 questions.`} Type fast! Pass if you're stuck and come back to it.</p>
          ${step === 'ready2' ? `<p>Don't repeat ${fm.p1 === fm.p2 ? 'your first' : `${name(fm.p1)}'s`} answers.</p>` : ''}
          <div class="ff-actions"><button class="btn btn-primary btn-big" id="fm-start">Start my clock</button></div>`
       : `<h2>${name(up)} is about to play Fast Money</h2>`;
@@ -151,7 +153,8 @@ function renderFastMoney(el, s, me, players, sendAction, team, isVip) {
     body = `<h2>${fm.won ? '🎉 Fast Money won! 🎉' : `${fm.total} points. So close!`}</h2>
       ${isVip ? '<div class="ff-actions"><button class="btn btn-primary btn-big" id="ff-new">Play again</button></div>' : ''}`;
   }
-  el.innerHTML = `<div class="ff ff-phone">${body}${hideFromMe || step === 'pick' ? '' : fmBoardHtml(s, players)}</div>`;
+  const live = ['play1', 'reveal1'].includes(step) ? fmLiveHtml(s, 0) : ['play2', 'reveal2'].includes(step) ? fmLiveHtml(s, 1) : step === 'done' ? fmBoardHtml(s, players) : '';
+  el.innerHTML = `<div class="ff ff-phone">${body}${hideFromMe || step === 'pick' ? '' : live}</div>`;
   runFmClock(s);
   el.querySelector('#fm-join')?.addEventListener('click', () => sendAction('game:fm-join'));
   el.querySelector('#fm-start')?.addEventListener('click', () => sendAction('game:fm-start'));

@@ -1,7 +1,14 @@
 // TV view for Mafia: the narrator. Never reveals a living player's role.
 import { esc, nameOf } from '../../js/ui.js';
-import { roleWithArticle } from './engine.js';
+import { roleWithArticle, roleCounts } from './engine.js';
 import { mafiaStyles, peopleHtml } from './shared.js';
+
+/** "2 Mafia · 1 Doctor · 1 Detective · 5 Villagers" */
+function countsHtml(c) {
+  if (!c) return '';
+  const part = (k, one, many) => (c[k] ? `<span class="mf-count ${k}"><b>${c[k]}</b> ${c[k] === 1 ? one : many}</span>` : '');
+  return `<div class="mf-counts">${part('mafia', 'Mafia', 'Mafia')}${part('doctor', 'Doctor', 'Doctors')}${part('detective', 'Detective', 'Detectives')}${part('villager', 'Villager', 'Villagers')}</div>`;
+}
 
 export function renderBoard(el, { state: s, players, sendAction }) {
   mafiaStyles();
@@ -15,19 +22,18 @@ export function renderBoard(el, { state: s, players, sendAction }) {
   switch (s.phase) {
     case 'setup':
       stage = `<div class="mf-stage night"><h2>Who's narrating?</h2>
+        ${countsHtml(roleCounts(players.filter((p) => p.id !== s.narrator).length))}
         <p>${s.narrator ? `<b>${narr}</b> will narrate. They'll see every role and run the night, so they don't play.` : 'The TV narrates, so everyone plays. Or someone can tap <b>I\'ll narrate</b> on their phone to run the game themselves.'}</p></div>`;
       buttons = `${s.narrator ? '<button class="btn btn-ghost" id="mf-nonarr">Let the TV narrate</button>' : ''}<button class="btn btn-primary btn-big" id="mf-deal">Deal the roles</button>`;
       below = s.error ? `<p class="center" style="color:#ffb3ad;font-weight:700">${esc(s.error)}</p>` : '';
       break;
     case 'roles':
-      stage = `<div class="mf-stage night"><h2>Welcome to town</h2><p>Check your secret role on your phone. Don't let anyone see. ${s.ready.length} of ${s.seats.length} ready.</p></div>`;
+      stage = `<div class="mf-stage night"><h2>Welcome to town</h2>${countsHtml(s.counts)}<p>Check your secret role on your phone. Don't let anyone see. ${s.ready.length} of ${s.seats.length} ready.</p></div>`;
       buttons = '<button class="btn btn-ghost" id="mf-start">Start the first night</button>';
       below = peopleHtml(s, players);
       break;
     case 'night':
-      stage = s.narrator
-        ? `<div class="mf-stage night"><h2>Night ${s.day}</h2><p>Close your eyes and listen to ${narr}. Open them only when you're told to, and do your task on your phone.</p></div>`
-        : `<div class="mf-stage night"><h2>Night ${s.day}</h2><p>Everyone, look at your phone and do your night task. Keep your poker face.</p></div>`;
+      stage = `<div class="mf-stage night"><h2>Night ${s.day}</h2><p>Everyone, look at your phone and pick who you suspect. Keep your poker face.</p></div>`;
       below = peopleHtml(s, players, { done: true });
       buttons = s.narrator ? `<span class="muted">${s.nightDone.length} of ${aliveCount} done</span>` : `<span class="muted">${s.nightDone.length} of ${aliveCount} done</span><button class="btn btn-ghost" id="mf-wake">Wake the town now</button>`;
       break;
@@ -37,16 +43,16 @@ export function renderBoard(el, { state: s, players, sendAction }) {
       stage = m.killed
         ? `<div class="mf-stage death"><h2>${n(m.killed)} didn't survive the night</h2><p>They were ${m.role === 'mafia' ? 'a member of the Mafia' : roleWithArticle(m.role)}.</p></div>`
         : m.saved
-          ? '<div class="mf-stage saved"><h2>Everyone woke up!</h2><p>The Mafia struck, but the Doctor got there first.</p></div>'
+          ? `<div class="mf-stage saved"><h2>The Doctor saved ${n(m.savedWho)}!</h2><p>The Mafia went after ${n(m.savedWho)} last night, but the Doctor got there first.</p></div>`
           : '<div class="mf-stage day"><h2>A quiet night</h2><p>Nobody was attacked.</p></div>';
       buttons = s.narrator ? '' : '<button class="btn btn-primary btn-big" id="mf-day">Start the day</button>';
       below = peopleHtml(s, players);
       break;
     }
     case 'day':
-      stage = `<div class="mf-stage day"><h2>Day ${s.day}: who's the Mafia?</h2><p>Talk it over, then vote on your phone. Votes show up here as they come in.</p></div>`;
+      stage = `<div class="mf-stage day"><h2>Day ${s.day}: who's the Mafia?</h2><p>Talk it over, then vote on your phone. Faded names are still deciding; solid ones are locked in. More than half on one person ends the vote.</p></div>`;
       below = peopleHtml(s, players, { votes: true });
-      buttons = `<span class="muted">${Object.keys(s.votes).length} of ${aliveCount} voted${s.votes && Object.values(s.votes).includes('skip') ? ` · ${Object.values(s.votes).filter((v) => v === 'skip').length} skip` : ''}</span>
+      buttons = `<span class="muted">${Object.keys(s.votes).length} of ${aliveCount} locked in${s.votes && Object.values(s.votes).includes('skip') ? ` · ${Object.values(s.votes).filter((v) => v === 'skip').length} skip` : ''}</span>
         ${s.narrator ? '' : '<button class="btn btn-ghost" id="mf-close">Close the vote</button>'}`;
       break;
     case 'verdict': {

@@ -47,6 +47,7 @@ function showJoinForm(error = '') {
       ${error ? `<p class="error">${escapeHtml(error)}</p>` : ''}
       <label>Room code</label>
       <div id="tiles">${tileInputHtml()}</div>
+      ${navigator.mediaDevices?.getUserMedia ? '<button type="button" class="btn btn-ghost qr-btn" id="scan-qr">📷 Scan the code on the TV</button>' : ''}
       <label>Who are you?</label>
       <div class="who-grid" id="who">
         ${PEOPLE.map((p) => `<button type="button" data-person="${p}" aria-pressed="${person === p}">${p}</button>`).join('')}
@@ -59,6 +60,13 @@ function showJoinForm(error = '') {
       <button class="btn btn-primary btn-big" id="join-btn">Join</button>
     </form>`;
   const getCode = wireTileInput($('#tiles'), (params.get('code') || '').toUpperCase());
+  $('#scan-qr')?.addEventListener('click', async () => {
+    const { scanForCode } = await import('./qr-scan.js');
+    const code = await scanForCode();
+    if (!code) return;
+    [...$('#tiles').querySelectorAll('input')].forEach((input, i) => { input.value = code[i] || ''; });
+    $('#name').focus();
+  });
   const first = [...$('#tiles').querySelectorAll('input')].find((i) => !i.value);
   (first || $('#name')).focus();
   $('#who').onclick = (e) => {
@@ -105,6 +113,8 @@ async function join(user, code, name) {
   let players = [];
   let state = {};
   let priv = {};
+  // A fast lane for games that stream lots of small updates (Tetris boards): straight to the TV, skipping the game logic.
+  const setLive = (data) => set(ref(db, `${roomPath}/live/${user.uid}`), data).catch(() => {});
   const mediaCache = {};
   const media = (id) => {
     if (id in mediaCache) return mediaCache[id];
@@ -172,6 +182,6 @@ async function join(user, code, name) {
       </div>`;
       return;
     }
-    game.renderPlayer(el, { state, priv, me: user.uid, players, sendAction, media });
+    game.renderPlayer(el, { state, priv, me: user.uid, players, sendAction, media, setLive });
   }
 }

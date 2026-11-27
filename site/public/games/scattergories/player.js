@@ -34,11 +34,11 @@ export function renderPlayer(el, { state: s, priv = {}, me, players, sendAction 
     html = `<div class="sg-review-top"><div class="sg-letter sm">${s.letter}</div><div><div class="muted">Category ${s.review + 1} of ${PER_ROUND}</div>${dots(s)}</div></div>
       <div class="sg-pad sg-cat-card"><div class="sg-cat-name">${esc(s.categories[s.review])}</div></div>
       <div class="stack">${answerCards(s, players, { phone: true, me })}</div>
-      ${isVip ? `<div class="row-center" style="margin-top:1rem"><button class="btn btn-primary btn-big" id="sg-next">${s.review < PER_ROUND - 1 ? 'Next category' : 'Score the round'}</button></div>` : ''}`;
+      `;
   } else {
     html = `<div class="display-l center">${s.phase === 'over' ? 'Final scores' : `Round ${s.round}: +${s.roundPoints[me] ?? 0}`}</div>
       ${scoreboard(players.map((p) => ({ name: p.name, score: s.scores[p.id] || 0 })))}
-      ${isVip ? `<div class="row-center"><button class="btn btn-primary btn-big" id="${s.phase === 'over' ? 'sg-again' : 'sg-round'}">${s.phase === 'over' ? 'Play again' : 'Next round'}</button></div>` : ''}`;
+      ${isVip && s.phase === 'over' ? '<div class="row-center"><button class="btn btn-primary btn-big" id="sg-again">Play again</button></div>' : ''}`;
   }
 
   setHtmlKeepingInputs(el, html);

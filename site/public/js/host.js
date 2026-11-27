@@ -16,6 +16,19 @@ main().catch((err) => {
   $('#app').innerHTML = `<div class="sheet"><h2>Couldn't set up the room</h2><p>${escapeHtml(err.message)}</p><a class="btn btn-primary" href="index.html">Back to games</a></div>`;
 });
 
+/**
+ * TV remotes: put the cursor on the yellow (main) button so pressing OK does the obvious thing.
+ * Leaves it alone if someone has already moved to another button on the screen.
+ */
+function focusMainButton() {
+  const board = document.querySelector('#board');
+  if (!board || document.querySelector('.end-ask')) return;
+  const active = document.activeElement;
+  if (active && active !== document.body && document.body.contains(active) && (board.contains(active) || active.id === 'end')) return;
+  const main = [...board.querySelectorAll('.btn-primary:not(:disabled), button.btn-primary')].find((b) => b.offsetParent && !b.disabled);
+  main?.focus({ preventScroll: true });
+}
+
 async function main() {
   if (warnIfNotConfigured()) return;
   const user = await ensureUser();
@@ -107,6 +120,12 @@ function runRoom({ code, game, user, resume }) {
     if (lastWritten[path] === json) return;
     lastWritten[path] = json;
     set(ref(db, `${roomPath}/${path}`), value == null ? null : { json, at: Date.now() });
+  };
+  // Phones' fast-lane updates (see setLive in play.js). One listener, shared by whoever asks.
+  let liveCb = null, liveOn = false;
+  const onLive = (cb) => {
+    liveCb = cb;
+    if (!liveOn) { liveOn = true; onValue(ref(db, `${roomPath}/live`), (snap) => liveCb?.(snap.val() || {})); }
   };
   const mediaCache = {};
   const media = (id) => {
@@ -226,11 +245,21 @@ function runRoom({ code, game, user, resume }) {
     safely(() => engine.onGameStart());
     render();
   };
-  $('#end').onclick = async () => {
-    if (!confirm('End the game for everyone?')) return;
-    engine.destroy();
-    await update(ref(db, `${roomPath}/meta`), { status: 'closed' });
-    location.href = 'index.html';
+  // End game: ask on the page itself (TV apps handle pop-up dialogs badly), then go back to picking a game.
+  $('#end').onclick = () => {
+    if (document.querySelector('.end-ask')) return;
+    const ask = document.createElement('div');
+    ask.className = 'end-ask';
+    ask.innerHTML = `<div class="end-card"><h2>End this game for everyone?</h2>
+      <div class="row-center"><button class="btn btn-ghost" id="end-no">Keep playing</button><button class="btn btn-primary" id="end-yes">End game</button></div></div>`;
+    document.body.appendChild(ask);
+    ask.querySelector('#end-no').onclick = () => ask.remove();
+    ask.querySelector('#end-yes').onclick = async () => {
+      engine.destroy();
+      await update(ref(db, `${roomPath}/meta`), { status: 'closed' }).catch(() => {});
+      location.replace('index.html#games');
+    };
+    ask.querySelector('#end-no').focus();
   };
   // Test bots: hidden phones that join and tap around, so one person can try any game.
   const BOT_NAMES = ['Bot Ada', 'Bot Max', 'Bot Pip', 'Bot Zed', 'Bot Lou', 'Bot Ivy', 'Bot Gus', 'Bot Bea', 'Bot Rex', 'Bot Kit', 'Bot Moe', 'Bot Dot'];
@@ -279,10 +308,11 @@ function runRoom({ code, game, user, resume }) {
       $('#start').disabled = !enough;
       $('#start-hint').textContent = enough ? '' : `${game.config.name} needs at least ${min} player${min > 1 ? 's' : ''}.`;
     } else {
-      game.renderBoard($('#board'), { state: engine.state, players, sendAction: boardSendAction, media });
+      game.renderBoard($('#board'), { state: engine.state, players, sendAction: boardSendAction, media, onLive });
       const cast = game.config.cast === false ? '' : castHtml(players, engine.state);
       if ($('#cast').dataset.html !== cast) { $('#cast').innerHTML = cast; $('#cast').dataset.html = cast; }
       fitToScreen();
+      focusMainButton();
     }
   }
   render();

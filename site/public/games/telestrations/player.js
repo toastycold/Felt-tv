@@ -1,9 +1,23 @@
 // Phone view for Telestrations: pick a word, then draw or guess each page.
-import { esc, countdown, setHtmlKeepingInputs } from '../../js/ui.js';
+import { esc, countdown, setHtmlKeepingInputs, nameOf as nameOfP } from '../../js/ui.js';
 import { COLORS, drawStyles, mountPad, paintAll } from './draw.js';
 
 const pad = { key: '', strokes: [], color: COLORS[0], width: 10 };
 let lastKey = '';
+
+// Save a draft every couple of seconds, and hand in whatever you have just before the timer ends,
+// so a drawing or guess is never lost.
+let saveTimer = 0, sendTimer = 0, lastDraft = '';
+function stopSaving() { clearInterval(saveTimer); clearTimeout(sendTimer); saveTimer = sendTimer = 0; lastDraft = ''; }
+function keepSaving(s, current, submit, sendAction) {
+  stopSaving();
+  saveTimer = setInterval(() => {
+    const d = JSON.stringify(current());
+    if (d !== lastDraft) { lastDraft = d; sendAction('game:draft', current()); }
+  }, 2500);
+  const left = (s.deadline || 0) - Date.now() - 1500;
+  if (left > 0) sendTimer = setTimeout(() => { stopSaving(); submit(); }, left);
+}
 
 export function renderPlayer(el, ctx) {
   const { state: s, priv = {}, me, players, sendAction, media } = ctx;
@@ -22,6 +36,7 @@ export function renderPlayer(el, ctx) {
     return;
   }
   lastKey = key;
+  if (s.phase !== 'play') stopSaving();
 
   if (!seated) {
     el.innerHTML = '<div class="center"><div class="display-l">Watching this game</div><p class="muted">You joined after it started. Watch the TV!</p></div>';
@@ -61,7 +76,8 @@ export function renderPlayer(el, ctx) {
       el.querySelectorAll('[data-width]').forEach((b) => (b.onclick = () => { pad.width = Number(b.dataset.width); el.querySelectorAll('[data-width]').forEach((x) => x.classList.toggle('on', x === b)); }));
       el.querySelector('#ts-undo').onclick = () => { pad.strokes.pop(); p.repaint(); };
       el.querySelector('#ts-clear').onclick = () => { pad.strokes = []; p.repaint(); };
-      el.querySelector('#ts-send').onclick = () => sendAction('game:draw', { strokes: pad.strokes });
+      el.querySelector('#ts-send').onclick = () => { stopSaving(); sendAction('game:draw', { strokes: pad.strokes }); };
+      keepSaving(s, () => ({ strokes: pad.strokes }), () => sendAction('game:draw', { strokes: pad.strokes }), sendAction);
       return;
     }
     // guess
@@ -77,19 +93,29 @@ export function renderPlayer(el, ctx) {
       if (!strokes) lastKey = ''; // re-render once the drawing arrives
       return strokes;
     });
-    el.querySelector('#ts-guess').onsubmit = (e) => { e.preventDefault(); sendAction('game:guess', { text: el.querySelector('#ts-guess-text').value }); };
+    el.querySelector('#ts-guess').onsubmit = (e) => { e.preventDefault(); stopSaving(); sendAction('game:guess', { text: el.querySelector('#ts-guess-text').value }); };
+    const guessText = () => el.querySelector('#ts-guess-text')?.value || '';
+    keepSaving(s, () => ({ text: guessText() }), () => { if (guessText().trim()) sendAction('game:guess', { text: guessText() }); }, sendAction);
     return;
   }
 
   if (s.phase === 'reveal') {
     el.innerHTML = `<div class="center"><div class="display-l">Look at the TV!</div>
       <p class="muted">Sketchbook ${s.revealBook + 1} of ${s.books.length}</p>
-      ${isVip ? '<div class="row-center"><button class="btn btn-ghost" id="ts-prev">Back</button><button class="btn btn-primary btn-big" id="ts-next">Next</button></div>' : ''}</div>`;
+      </div>`;
     el.querySelector('#ts-next')?.addEventListener('click', () => sendAction('game:reveal-next'));
     el.querySelector('#ts-prev')?.addEventListener('click', () => sendAction('game:reveal-prev'));
     return;
   }
 
-  el.innerHTML = `<div class="center"><div class="display-l">That's a wrap!</div>${isVip ? '<button class="btn btn-primary btn-big" id="ts-again">Play again</button>' : ''}</div>`;
+  // The end: every sketchbook, start to finish, to scroll through on your phone.
+  const books = s.books || [];
+  el.innerHTML = `<div class="center"><div class="display-l">That's a wrap!</div><p class="muted">Every sketchbook, start to finish:</p></div>
+    ${books.map((b, k) => `<div class="ts-book"><h3>${k + 1}. ${esc(nameOfP(b.owner, players))}'s sketchbook</h3>
+      <div class="ts-book-pages"><div class="ts-mini word">${esc(b.word)}</div>${b.pages.map((pg) => pg.type === 'draw'
+        ? `<div class="ts-mini"><canvas class="ts-art" width="400" height="300" data-media="${pg.media}"></canvas><small>${esc(nameOfP(pg.by, players))}</small></div>`
+        : `<div class="ts-mini word">${pg.text ? esc(pg.text) : '<em>(no guess)</em>'}<small>${esc(nameOfP(pg.by, players))}</small></div>`).join('')}</div></div>`).join('')}
+    ${isVip ? '<div class="row-center" style="margin-top:1rem"><button class="btn btn-primary btn-big" id="ts-again">Play again</button></div>' : ''}`;
+  paintAll(el, (id) => { const st = media(id); if (!st) lastKey = ''; return st; });
   el.querySelector('#ts-again')?.addEventListener('click', () => sendAction('game:play-again'));
 }

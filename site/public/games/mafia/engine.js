@@ -14,6 +14,12 @@ export function mafiaCount(n) {
   return 4;
 }
 
+/** How many of each role a game with n players gets. */
+export function roleCounts(n) {
+  const m = mafiaCount(n);
+  return { mafia: m, doctor: n >= 4 ? 1 : 0, detective: n >= 4 ? 1 : 0, villager: Math.max(0, n - m - 2) };
+}
+
 export default class MafiaEngine extends BaseGameEngine {
   onInit() {
     this.state = {
@@ -24,7 +30,9 @@ export default class MafiaEngine extends BaseGameEngine {
       day: 0,
       nightDone: [],     // who has finished their night task (everyone taps something, so nobody stands out)
       morning: null,     // { killed: id | '', role, saved: bool }
-      votes: {},         // day votes, public: id -> target id | 'skip'
+      votes: {},         // day votes, LOCKED IN, public: id -> target id | 'skip'
+      leans: {},         // who each player has tapped but not locked in yet (shown faintly on the TV)
+      counts: null,      // { mafia, doctor, detective, villager } for this game
       verdict: null,     // { out: id | '', role, tally }
       reveals: {},       // id -> role, shown once someone is dead
       winner: '', roles: null, log: [],
@@ -65,6 +73,7 @@ export default class MafiaEngine extends BaseGameEngine {
     const m = mafiaCount(n);
     const deck = shuffle(['doctor', 'detective', ...Array(m).fill('mafia'), ...Array(Math.max(0, n - m - 2)).fill('villager')]).slice(0, n);
     this.secret = { roles: Object.fromEntries(s.seats.map((id, i) => [id, deck[i]])), night: {}, lastSaved: '' };
+    s.counts = roleCounts(n);
     Object.assign(s, { phase: 'roles', shown: true, dead: [], ready: [], day: 0, nightDone: [], morning: null, votes: {}, verdict: null, reveals: {}, winner: '', roles: null, log: [] });
     const mafia = s.seats.filter((id) => this.roleOf(id) === 'mafia');
     for (const id of s.seats) {
@@ -82,7 +91,7 @@ export default class MafiaEngine extends BaseGameEngine {
     s.phase = 'night';
     s.day += 1;
     s.nightDone = [];
-    s.votes = {};
+    s.votes = {}; s.leans = {};
     s.verdict = null;
     this.secret.night = { mafia: {}, save: '', check: '', suspects: {} };
     // Every living phone gets a task so nobody can tell who has a real one.
@@ -91,7 +100,7 @@ export default class MafiaEngine extends BaseGameEngine {
       const role = this.roleOf(id);
       let task = 'none';
       if (alive.includes(id)) task = role === 'mafia' ? 'kill' : role === 'doctor' ? 'save' : role === 'detective' ? 'check' : 'suspect';
-      this.updatePrivate(id, { task, pick: '', night: s.day, mafiaPicks: {} });
+      this.updatePrivate(id, { task, pick: '', night: s.day, mafiaPicks: {}, note: '' });
     }
   }
 
@@ -117,10 +126,10 @@ export default class MafiaEngine extends BaseGameEngine {
       s.reveals[victim] = this.roleOf(victim);
       this.log(`${this.nameOf(victim)} was found dead. They were ${roleWithArticle(this.roleOf(victim))}.`);
     } else {
-      this.log(saved ? 'The Doctor saved someone last night!' : 'Nobody died last night.');
+      this.log(saved ? `The Doctor saved ${this.nameOf(victim)} last night!` : 'Nobody died last night.');
     }
     s.shown = !s.narrator;
-    s.morning = { killed: saved ? '' : victim, role: saved || !victim ? '' : this.roleOf(victim), saved };
+    s.morning = { killed: saved ? '' : victim, role: saved || !victim ? '' : this.roleOf(victim), saved, savedWho: saved ? victim : '' };
     for (const id of s.seats) this.updatePrivate(id, { task: 'none', pick: '' });
     if (!this.checkWin()) s.phase = 'morning';
   }
@@ -130,8 +139,18 @@ export default class MafiaEngine extends BaseGameEngine {
     const s = this.state;
     this.revealDeaths();
     s.phase = 'day';
-    s.votes = {};
+    s.votes = {}; s.leans = {};
     s.verdict = null;
+  }
+
+  /** Locked-in votes decide it as soon as more than half the town agrees (or everyone has locked in). */
+  checkMajority() {
+    const s = this.state;
+    const alive = this.alive();
+    const tally = {};
+    for (const t of Object.values(s.votes)) tally[t] = (tally[t] || 0) + 1;
+    const need = Math.floor(alive.length / 2) + 1;
+    if (Object.values(tally).some((c) => c >= need) || alive.every((id) => s.votes[id])) this.tallyVotes();
   }
 
   tallyVotes() {
@@ -218,24 +237,24 @@ export default class MafiaEngine extends BaseGameEngine {
         if (!alive.includes(target)) return;
         const n = this.secret.night;
         if (role === 'mafia') {
-          if (this.roleOf(target) === 'mafia') return; // can't target your own team
+          if (this.roleOf(target) === 'mafia') { this.updatePrivate(me, { note: 'Pick someone else.', noteAt: Date.now() }); break; }
           n.mafia[me] = target;
           // Show teammates each other's picks.
           const team = alive.filter((id) => this.roleOf(id) === 'mafia');
           for (const id of team) this.updatePrivate(id, { mafiaPicks: { ...n.mafia } });
-          this.updatePrivate(me, { pick: target });
+          this.updatePrivate(me, { pick: target, note: '' });
         } else if (role === 'doctor') {
-          if (target === this.secret.lastSaved) return; // not the same person two nights running
+          if (target === this.secret.lastSaved) { this.updatePrivate(me, { note: 'Pick someone else.', noteAt: Date.now() }); break; }
           n.save = target;
-          this.updatePrivate(me, { pick: target });
+          this.updatePrivate(me, { pick: target, note: '' });
         } else if (role === 'detective') {
-          if (target === me) return;
+          if (target === me) { this.updatePrivate(me, { note: 'Pick someone else.', noteAt: Date.now() }); break; }
           n.check = target;
           const checks = { ...(this.private[me]?.checks || {}), [target]: this.roleOf(target) === 'mafia' ? 'Mafia' : 'Not Mafia' };
-          this.updatePrivate(me, { pick: target, checks });
+          this.updatePrivate(me, { pick: target, checks, note: '' });
         } else {
           n.suspects[me] = target;
-          this.updatePrivate(me, { pick: target }); // villagers' "suspect" tap is just cover
+          this.updatePrivate(me, { pick: target, note: '' }); // villagers' "suspect" tap is just cover
         }
         this.nightTaskDone(me);
         break;
@@ -249,11 +268,17 @@ export default class MafiaEngine extends BaseGameEngine {
         if (s.phase !== 'morning' || !host) return;
         this.startDay();
         break;
-      case 'game:vote':
-        if (s.phase !== 'day' || !living) return;
+      case 'game:lean':   // tapped a name: shows on the TV, but doesn't count yet
+        if (s.phase !== 'day' || !living || s.votes[me]) return;
+        if (p.id !== 'skip' && (!alive.includes(p.id) || p.id === me)) return;
+        s.leans[me] = p.id;
+        break;
+      case 'game:vote':   // locked in: counts, and can't be changed
+        if (s.phase !== 'day' || !living || s.votes[me]) return;
         if (p.id !== 'skip' && (!alive.includes(p.id) || p.id === me)) return;
         s.votes[me] = p.id;
-        if (alive.every((id) => s.votes[id])) this.tallyVotes();
+        delete s.leans[me];
+        this.checkMajority();
         break;
       case 'game:close-vote':
         if (s.phase !== 'day' || !host || !Object.keys(s.votes).length) return;

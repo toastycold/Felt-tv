@@ -1,13 +1,18 @@
 // TV shows everyone's board; each phone plays its own game.
 import { esc, nameOf, injectStyles } from '../../js/ui.js';
 import { Tetris, paint, bevel, W, H, COLORS, PREVIEW } from './game.js';
+import { spriteHtml } from '../../js/people.js';
 
 function styles() {
   injectStyles('tetris', `
-    .tt { text-align: center; }
-    .tt-boards { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(.6rem, 2vw, 1.6rem); }
-    .tt-p { display: flex; flex-direction: column; align-items: center; gap: .2rem; }
-    .tt-p canvas { height: var(--bh, 60vh); width: auto; aspect-ratio: 1 / 2; border-radius: 8px; box-shadow: 0 0 0 3px rgba(255,255,255,.1); }
+    .tt { text-align: center; container-type: inline-size; }
+    body.in-game .page:has(.tt) { max-width: none; }
+    /* Everyone in one row, as big as the screen allows; each player's character and name sit under their board. */
+    .tt-boards { display: flex; justify-content: center; align-items: flex-end; gap: var(--gap, 1.2rem); }
+    .tt-p { display: flex; flex-direction: column; align-items: center; gap: .15rem; min-width: 0; }
+    .tt-p canvas { height: var(--bh, 60vh); width: auto; aspect-ratio: 1 / 2; border-radius: 8px; box-shadow: 0 0 0 3px rgba(255,255,255,.1); display: block; }
+    .tt-who { display: flex; align-items: center; justify-content: center; gap: .2rem; margin-top: .15rem; }
+    .tt-who .sprite { margin: -.5rem -.2rem -.4rem -.4rem; }
     .tt-p.dead canvas { filter: grayscale(1) brightness(.6); }
     .tt-p.win canvas { box-shadow: 0 0 0 4px var(--gold); }
     .tt-name { font: 800 1.05rem var(--display); }
@@ -149,31 +154,52 @@ function celebrate(wrap, canvas, n, rows = [], colors = null) {
 }
 
 // ---------------- TV ----------------
-let tvKey = '', tvFx = -1;
-export function renderBoard(el, { state: s, players, sendAction }) {
+let tvKey = '', tvFx = -1, tvState = null, liveBoards = {};
+const paintBox = (box, b) => {
+  if (!box || !b?.cells) return;
+  paint(box.querySelector('canvas'), b.cells);
+  box.querySelector('.tt-stat').textContent = `${(b.score || 0).toLocaleString()} pts · ${b.lines || 0} lines`;
+};
+/** Boards arriving on the quick lane: just repaint those canvases, nothing else on the page. */
+function paintLive(all) {
+  liveBoards = all;
+  const s = tvState;
+  if (!s || s.phase !== 'play') return;
+  for (const [id, b] of Object.entries(all)) {
+    if (b?.r !== s.round || s.dead.includes(id)) continue;
+    paintBox(document.querySelector(`.tt-p[data-id="${id}"]`), b);
+  }
+}
+export function renderBoard(el, { state: s, players, sendAction, onLive }) {
   styles();
   if (!s.boards || s.phase === 'lobby') { el.innerHTML = '<p class="center muted">Stacking blocks…</p>'; return; }
   const ids = Object.keys(s.boards);
   const key = `${s.round}:${ids.join(',')}:${s.phase === 'over'}`;
-  const bh = ids.length <= 2 ? 62 : ids.length <= 4 ? 52 : ids.length <= 6 ? 40 : 30;
+  // Fit all boards in one row: as tall as the screen allows, but narrow enough that n of them fit across.
+  const n = ids.length;
+  const gap = n >= 7 ? 0.7 : n >= 5 ? 1 : 1.6;
+  const bh = `min(${n <= 2 ? 72 : 74}vh, calc((100cqw - ${(n - 1) * gap}rem) / ${n} * 2 - 6px))`;
+  const sprite = n >= 7 ? 40 : 52;
   if (tvKey !== key || !el.querySelector('.tt')) {
     tvKey = key;
-    el.innerHTML = `<div class="tt" style="--bh:${bh}vh">
+    el.innerHTML = `<div class="tt" style="--bh:${bh};--gap:${gap}rem">
       <div class="tt-log" id="tt-log"></div>
       <div class="tt-boards">${ids.map((id) => `<div class="tt-p" data-id="${id}">
         <div class="tt-place"></div><div class="tt-wrap"><canvas width="${W * 12}" height="${H * 12}"></canvas></div>
-        <div class="tt-name">${esc(nameOf(id, players))}</div><div class="tt-stat"></div></div>`).join('')}</div>
+        <div class="tt-who">${spriteHtml(players.find((p) => p.id === id)?.person, s.dead.includes(id) ? 'eliminated' : 'idle', sprite)}<div class="tt-name">${esc(nameOf(id, players))}</div></div>
+        <div class="tt-stat"></div></div>`).join('')}</div>
       <div class="tt-actions">${s.phase === 'over' ? '<button class="btn btn-primary btn-big" id="tt-again">Play again</button>' : ''}</div></div>`;
     el.querySelector('#tt-again')?.addEventListener('click', () => sendAction('game:again'));
   }
+  tvState = s;
+  onLive?.(paintLive);
   for (const id of ids) {
     const box = el.querySelector(`.tt-p[data-id="${id}"]`);
-    const b = s.boards[id];
+    const b = liveBoards[id]?.r === s.round && s.phase === 'play' ? liveBoards[id] : s.boards[id];
     const dead = s.dead.includes(id);
     box.classList.toggle('dead', dead);
     box.classList.toggle('win', s.phase === 'over' && s.winner === id && !s.solo);
-    paint(box.querySelector('canvas'), b.cells);
-    box.querySelector('.tt-stat').textContent = `${b.score.toLocaleString()} pts · ${b.lines} lines`;
+    paintBox(box, b);
     box.querySelector('.tt-place').textContent = s.solo ? (dead ? 'Game over' : '') : s.places[id] === 1 ? '🏆 Winner' : dead ? `Out · #${s.places[id]}` : '';
   }
   if (tvFx === -1) tvFx = s.fx?.k || 0; // don't replay an old clear after a page reload
@@ -203,14 +229,15 @@ function countdownOverlay(s) {
 // ---------------- Phone ----------------
 let flashes = [];
 window.__ttGame = () => game; // handy for testing
-let game = null, gameRound = 0, applied = 0, raf = 0, lastDrop = 0, lastSnap = 0, dirty = false, send = null;
+let game = null, gameRound = 0, applied = 0, raf = 0, lastDrop = 0, lastSnap = 0, lastLive = 0, dirty = false, send = null, live = null;
 let phoneKey = '';
 
 function stopGame() { cancelAnimationFrame(raf); raf = 0; game = null; }
 
-export function renderPlayer(el, { state: s, me, players, sendAction }) {
+export function renderPlayer(el, { state: s, me, players, sendAction, setLive }) {
   styles();
   send = sendAction;
+  live = setLive ? (d) => setLive({ ...d, r: s.round }) : null;
   if (!s.boards || s.phase === 'lobby') { el.innerHTML = '<p class="center muted">Stacking blocks…</p>'; return; }
   const mine = s.boards[me];
   const isVip = players[0]?.id === me;
@@ -273,13 +300,20 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
   }
 }
 
+/**
+ * Your board goes to the TV two ways: a quick lane straight to the TV ~8 times a second (live),
+ * and a slower copy to the game itself every 2 seconds for scores and the final standings.
+ */
 function snap(force) {
   if (!game || !send) return;
   const now = performance.now();
-  if (!force && (!dirty || now - lastSnap < 400)) return;
+  const data = () => ({ cells: game.snapshot(), score: game.score, lines: game.lines, level: game.level });
+  if (live && (force || (dirty && now - lastLive >= 120))) { lastLive = now; dirty = false; live(data()); }
+  if (!live && !force && (!dirty || now - lastSnap < 400)) return;
+  if (live && now - lastSnap < 2000) return;
   lastSnap = now;
-  dirty = false;
-  send('game:snap', { cells: game.snapshot(), score: game.score, lines: game.lines, level: game.level });
+  if (!live) dirty = false;
+  send('game:snap', data());
 }
 
 function loop(el) {

@@ -28,25 +28,38 @@ export function lastHtml(s, players) {
 }
 
 /**
- * Fast Money board: player 1's answers on the left, player 2's on the right, total at the bottom.
- * Player 1's column stays covered while player 2 plays (like the show).
+ * Fast Money, one player's turn: every question, with that player's answers appearing as they type them.
+ * Points flip over one at a time after the turn.
  */
+export function fmLiveHtml(s, t) {
+  const fm = s.fm;
+  const now = fm.order?.[0];
+  const playing = fm.step === `play${t + 1}`;
+  const rows = fm.qs.map((q, i) => {
+    const a = fm.a[t][i];
+    const ptsOn = fm.shown[t] > i;
+    const active = playing && now === i;
+    return `<div class="fm-row ${active ? 'now' : ''}">
+      <span class="fm-qtext">${i + 1}. ${esc(q)}</span>
+      <span class="fm-ans ${a ? 'in' : ''}">${a ? esc(a.text || '(passed)') : active ? '<i>thinking…</i>' : ''}</span>
+      <span class="pts ${ptsOn ? 'on' : ''} ${ptsOn && !a?.points ? 'zero' : ''}">${ptsOn ? a?.points ?? 0 : ''}</span></div>`;
+  }).join('');
+  return `<div class="fm-board fm-live">${rows}
+    <div class="fm-total ${fm.total >= 200 ? 'win' : ''}">Total <b>${fm.total}</b><small>/ 200</small></div></div>`;
+}
+
+/** Fast Money summary at the end: both players' answers side by side for every question. */
 export function fmBoardHtml(s, players) {
   const fm = s.fm;
-  const cover1 = ['ready2', 'play2', 'reveal2'].includes(fm.step);
   const cell = (t, i) => {
     const a = fm.a[t][i];
-    const shown = fm.shown[t];
-    const textOn = shown >= 2 * i + 1, ptsOn = shown >= 2 * i + 2;
-    if (t === 0 && cover1) return '<div class="fm-cell covered"><span></span><span class="pts"></span></div>';
-    const txt = a && textOn ? esc(a.text || '—') : '';
-    const pts = a && ptsOn ? a.points : '';
-    return `<div class="fm-cell ${textOn ? 'shown' : ''} ${ptsOn && a?.points === 0 ? 'zero' : ''}"><span>${txt}</span><span class="pts">${pts}</span></div>`;
+    if (!a || fm.shown[t] <= i) return '<div class="fm-cell"><span></span><span class="pts"></span></div>';
+    return `<div class="fm-cell shown ${a.points === 0 ? 'zero' : ''}"><span>${esc(a.text || '—')}</span><span class="pts">${a.points}</span></div>`;
   };
-  const rows = [0, 1, 2, 3, 4].map((i) => `${cell(0, i)}${cell(1, i)}`).join('');
+  const rows = fm.qs.map((q, i) => `<div class="fm-q-label">${i + 1}. ${esc(q)}</div>${cell(0, i)}${cell(1, i)}`).join('');
   return `<div class="fm-board">
-    <div class="fm-names"><span>${esc(nameOf(fm.p1, players) || 'Player 1')}</span><span>${fm.p2 && fm.p2 !== fm.p1 ? esc(nameOf(fm.p2, players)) : 'Second try'}</span></div>
-    <div class="fm-grid">${rows}</div>
+    <div class="fm-names fm-sum"><span></span><span>${esc(nameOf(fm.p1, players) || 'Player 1')}</span><span>${fm.p2 && fm.p2 !== fm.p1 ? esc(nameOf(fm.p2, players)) : 'Second try'}</span></div>
+    <div class="fm-grid fm-sum">${rows}</div>
     <div class="fm-total ${fm.total >= 200 ? 'win' : ''}">Total <b>${fm.total}</b><small>/ 200</small></div></div>`;
 }
 

@@ -4,7 +4,7 @@ import { BaseGameEngine } from '../../js/engine-base.js';
 import { shuffle } from '../../js/ui.js';
 import { WORDS } from './words.js';
 
-export const TIMES = { draw: 75_000, guess: 35_000 };
+export const TIMES = { draw: 45_000, guess: 20_000 };   // shortened after playtesting (was 75s / 35s)
 
 export default class TelestrationsEngine extends BaseGameEngine {
   onInit() {
@@ -14,7 +14,7 @@ export default class TelestrationsEngine extends BaseGameEngine {
       done: {},            // id -> true once they've submitted this step
       deadline: 0,
       books: [],           // filled in at reveal time
-      revealBook: 0, revealPage: 0,
+      revealBook: 0, revealPage: 0, gallery: -1,
       game: 0,
     };
   }
@@ -27,11 +27,19 @@ export default class TelestrationsEngine extends BaseGameEngine {
     s.seats = shuffle(this.players.map((p) => p.id));
     s.steps = s.seats.length;
     s.game += 1;
-    const words = shuffle([...WORDS, ...this.extraItems('word').map((x) => x.text)]);
+    // Words this TV offered recently go to the back of the pile.
+    let seen = new Set();
+    try { seen = new Set(JSON.parse(localStorage.getItem('ts-seen') || '[]')); } catch { /* no storage */ }
+    const all = shuffle([...WORDS, ...this.extraItems('word').map((x) => x.text)]);
+    const words = [...all.filter((w) => !seen.has(w)), ...all.filter((w) => seen.has(w))];
+    try {
+      const used = [...seen, ...words.slice(0, s.seats.length * 2)];
+      localStorage.setItem('ts-seen', JSON.stringify(used.length > WORDS.length - 30 ? used.slice(-60) : used));
+    } catch { /* fine */ }
     this.secret.books = s.seats.map((owner) => ({ owner, word: '', pages: [] }));
     this.secret.options = Object.fromEntries(s.seats.map((id, i) => [id, [words[i * 2], words[i * 2 + 1]]]));
     this.private = {};
-    Object.assign(s, { phase: 'choose', step: 0, task: '', done: {}, books: [], revealBook: 0, revealPage: 0, deadline: 0 });
+    Object.assign(s, { phase: 'choose', step: 0, task: '', done: {}, books: [], revealBook: 0, revealPage: 0, deadline: 0, gallery: -1 });
     for (const id of s.seats) this.setPrivate(id, { phase: 'choose', options: this.secret.options[id], game: s.game });
     this.sync();
   }
@@ -62,17 +70,21 @@ export default class TelestrationsEngine extends BaseGameEngine {
   /** Fill in blanks for anyone who didn't finish, then move to the next step (or the reveal). */
   advance() {
     const s = this.state;
+    const drafts = this.secret.drafts || {};
     s.seats.forEach((id, i) => {
       if (s.done[id]) return;
       const book = this.secret.books[this.bookIndexFor(i, s.step)];
+      // Time ran out or the host moved on: keep whatever they had so far instead of a blank page.
+      const d = drafts[id]?.step === s.step && drafts[id]?.game === s.game ? drafts[id] : null;
       if (s.task === 'draw') {
         const media = `g${s.game}-b${this.bookIndexFor(i, s.step)}-p${s.step}`;
-        this.putMedia(media, []);
+        this.putMedia(media, d?.strokes || []);
         book.pages[s.step] = { by: id, type: 'draw', media };
       } else {
-        book.pages[s.step] = { by: id, type: 'guess', text: '' };
+        book.pages[s.step] = { by: id, type: 'guess', text: d?.text || '' };
       }
     });
+    this.secret.drafts = {};
     if (s.step + 1 >= s.steps) {
       clearTimeout(this.timer);
       s.phase = 'reveal';
@@ -135,6 +147,17 @@ export default class TelestrationsEngine extends BaseGameEngine {
         this.maybeAdvance();
         break;
       }
+      case 'game:draft': {   // work in progress, saved every few seconds in case time runs out
+        if (s.phase !== 'play' || seat === -1 || s.done[me]) return;
+        (this.secret.drafts ||= {})[me] = s.task === 'draw'
+          ? { step: s.step, game: s.game, strokes: Array.isArray(p.strokes) ? p.strokes.slice(0, 400) : [] }
+          : { step: s.step, game: s.game, text: String(p.text || '').trim().slice(0, 50) };
+        return;   // nothing public changed
+      }
+      case 'game:gallery':   // TV: flip through every sketchbook at the end
+        if (s.phase !== 'over' || !meta.isBoard) return;
+        s.gallery = Math.max(-1, Math.min(s.books.length - 1, p.i | 0));
+        break;
       case 'game:skip-wait':
         if (!host) return;
         if (s.phase === 'play') this.advance();
@@ -150,7 +173,7 @@ export default class TelestrationsEngine extends BaseGameEngine {
         // Reveal entries are: the original word (0), then each page (1..n)
         if (s.revealPage < book.pages.length) s.revealPage += 1;
         else if (s.revealBook < s.books.length - 1) { s.revealBook += 1; s.revealPage = 0; }
-        else s.phase = 'over';
+        else { s.phase = 'over'; s.gallery = -1; }
         break;
       }
       case 'game:reveal-prev':
