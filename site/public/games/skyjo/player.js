@@ -39,7 +39,7 @@ export function renderPlayer(el, ctx) {
   } else if (s.phase === 'round-over' || s.phase === 'over') {
     status = s.phase === 'over' ? 'Game over' : `Round ${s.round} done`;
     controls = totalsTable(s, players, nameOf)
-      + (isVip && s.phase === 'over' ? '<div class="row-center"><button class="btn btn-primary btn-big" id="sk-again">Play again</button></div>' : '');
+      + (isVip ? `<div class="row-center"><button class="btn btn-primary btn-big" id="${s.phase === 'over' ? 'sk-again' : 'sk-next'}">${s.phase === 'over' ? 'Play again' : 'Deal the next round'}</button></div>` : '');
   }
 
   el.innerHTML = `

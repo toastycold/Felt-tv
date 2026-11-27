@@ -34,7 +34,7 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
         : `<h2 class="hm-big">${esc(nameOf(s.current, players))} is guessing…</h2>${usedHtml(s)}`}`;
   } else if (s.phase === 'result') {
     body = `${wordHtml(s)}<h2 class="hm-big">${s.solvedBy === me ? 'You solved it! 🎉' : s.solvedBy ? `${esc(nameOf(s.solvedBy, players))} solved it` : s.setter === me ? 'You stumped them! 🎉' : 'Stumped!'}</h2>
-      `;
+      ${isVip ? '<div class="hm-actions"><button class="btn btn-primary btn-big" id="hm-next">Next</button></div>' : ''}`;
   } else if (s.phase === 'over') {
     const w = Array.isArray(s.winner) ? s.winner : [s.winner];
     body = `<h2 class="hm-big">${w.includes(me) ? (w.length > 1 ? 'You tied for first!' : 'You win! 🏆') : `${esc(nameOf(w[0], players))} wins`}</h2>

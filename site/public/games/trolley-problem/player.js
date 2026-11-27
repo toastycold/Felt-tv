@@ -24,7 +24,7 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
     el.innerHTML = `<div class="center">
       <div class="display-l">${mine ? (right ? 'You called it! +1' : 'Wrong guess') : 'You sat this one out'}</div>
       <p>Your score: <strong>${s.scores[me] || 0}</strong></p>
-      <p class="muted">Look at the TV.</p>
+      ${isVip ? `<button class="btn btn-primary btn-big" id="tp-next">${s.round >= s.total ? 'Final scores' : 'Next trolley'}</button>` : '<p class="muted">Look at the TV.</p>'}
     </div>`;
     el.querySelector('#tp-next')?.addEventListener('click', () => sendAction('game:next'));
     return;

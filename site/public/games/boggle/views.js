@@ -97,6 +97,6 @@ export function renderPlayer(el, { state: s, priv = {}, me, players, sendAction 
     <h2>Time's up!</h2>
     <p>You scored <b>${pts}</b> this round. Total: <b>${s.scores?.[me] || 0}</b></p>
     <div class="bg-mine">${mine.map((x) => `<span style="${x.shared ? 'opacity:.45;text-decoration:line-through' : ''}">${esc(x.word)}</span>`).join('')}</div>
-    <p class="muted">Look at the TV for everyone\'s words.</p></div>`);
+    ${isVip ? '<div class="bg-actions"><button class="btn btn-primary btn-big" id="bg-next">Next round</button></div>' : '<p class="muted">Look at the TV for everyone\'s words.</p>'}</div>`);
   el.querySelector('#bg-next')?.addEventListener('click', () => sendAction('game:next-round'));
 }

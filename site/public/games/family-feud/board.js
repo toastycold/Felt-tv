@@ -175,12 +175,12 @@ function renderFastMoney(el, s, players, sendAction) {
       top = `<p class="fm-q">${fam}, pick your two Fast Money players. Tap "I'll play" on your phones.</p>`;
       break;
     case 'ready1':
-      top = `<p class="fm-q">${name(fm.p1)} goes first. 60 seconds on the clock, and whatever's left goes to ${solo ? 'your second try' : name(fm.p2)}.</p>
+      top = `<p class="fm-q">${name(fm.p1)} goes first. 60 seconds on the clock. Whatever's left, plus 5 bonus seconds, goes to ${solo ? 'your second try' : name(fm.p2)}.</p>
         ${solo ? '' : `<p class="fm-look">${name(fm.p2)}, turn away from the TV and cover your ears!</p>`}`;
       actions = '<button class="btn btn-primary btn-big" id="fm-start">Start the clock</button>';
       break;
     case 'ready2':
-      top = `<p class="fm-q">${solo ? `${name(fm.p2)}, your second try` : `${name(fm.p2)}, come on back`}! You have ${Math.round(Math.max(10000, fm.left) / 1000)} seconds. Don't repeat ${solo ? 'your first' : `${name(fm.p1)}'s`} answers.</p>`;
+      top = `<p class="fm-q">${solo ? `${name(fm.p2)}, your second try` : `${name(fm.p2)}, come on back`}! You have ${Math.round((fm.left + 5000) / 1000)} seconds (what's left plus 5 bonus seconds). Don't repeat ${solo ? 'your first' : `${name(fm.p1)}'s`} answers.</p>`;
       actions = '<button class="btn btn-primary btn-big" id="fm-start">Start the clock</button>';
       break;
     case 'play1': case 'play2': {

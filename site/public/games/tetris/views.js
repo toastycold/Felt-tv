@@ -8,7 +8,8 @@ function styles() {
     .tt { text-align: center; container-type: inline-size; }
     body.in-game .page:has(.tt) { max-width: none; }
     /* Everyone in one row, as big as the screen allows; each player's character and name sit under their board. */
-    .tt-boards { display: flex; justify-content: center; align-items: flex-end; gap: var(--gap, 1.2rem); }
+    .tt-boards { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: .6rem var(--gap, 1.2rem);
+      max-width: calc(var(--per) * (var(--bh) / 2 + var(--gap)) + 1rem); margin: 0 auto; }
     .tt-p { display: flex; flex-direction: column; align-items: center; gap: .15rem; min-width: 0; }
     .tt-p canvas { height: var(--bh, 60vh); width: auto; aspect-ratio: 1 / 2; border-radius: 8px; box-shadow: 0 0 0 3px rgba(255,255,255,.1); display: block; }
     .tt-who { display: flex; align-items: center; justify-content: center; gap: .2rem; margin-top: .15rem; }
@@ -174,15 +175,20 @@ export function renderBoard(el, { state: s, players, sendAction, onLive }) {
   styles();
   if (!s.boards || s.phase === 'lobby') { el.innerHTML = '<p class="center muted">Stacking blocks…</p>'; return; }
   const ids = Object.keys(s.boards);
-  const key = `${s.round}:${ids.join(',')}:${s.phase === 'over'}`;
+  const key = `${s.round}:${ids.join(',')}:${s.phase === 'over'}:${innerWidth}x${innerHeight}`;
   // Fit all boards in one row: as tall as the screen allows, but narrow enough that n of them fit across.
+  // One row or two, whichever makes the boards bigger on this screen (two rows win on tall screens and big groups).
   const n = ids.length;
   const gap = n >= 7 ? 0.7 : n >= 5 ? 1 : 1.6;
-  const bh = `min(${n <= 2 ? 72 : 74}vh, calc((100cqw - ${(n - 1) * gap}rem) / ${n} * 2 - 6px))`;
+  const W0 = el.clientWidth || innerWidth, H0 = innerHeight;
+  const fit = (rows) => { const per = Math.ceil(n / rows); return Math.min((H0 * 0.8 - rows * 90) / rows, ((W0 - (per - 1) * gap * 16) / per) * 2 - 6); };
+  const rows = n >= 4 && fit(2) > fit(1) ? 2 : 1;
+  const per = Math.ceil(n / rows);
+  const bh = `min(${rows === 1 ? (n <= 2 ? 72 : 74) + 'vh' : `calc((80vh - ${rows * 90}px) / ${rows})`}, calc((100cqw - ${(per - 1) * gap}rem) / ${per} * 2 - 6px))`;
   const sprite = n >= 7 ? 40 : 52;
   if (tvKey !== key || !el.querySelector('.tt')) {
     tvKey = key;
-    el.innerHTML = `<div class="tt" style="--bh:${bh};--gap:${gap}rem">
+    el.innerHTML = `<div class="tt" style="--bh:${bh};--gap:${gap}rem;--per:${per}">
       <div class="tt-log" id="tt-log"></div>
       <div class="tt-boards">${ids.map((id) => `<div class="tt-p" data-id="${id}">
         <div class="tt-place"></div><div class="tt-wrap"><canvas width="${W * 12}" height="${H * 12}"></canvas></div>

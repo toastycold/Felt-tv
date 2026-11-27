@@ -118,7 +118,7 @@ export function renderPlayer(el, ctx) {
   if (s.phase === 'reveal') {
     el.innerHTML = `<div class="center"><div class="display-l">Look at the TV!</div>
       <p class="muted">Sketchbook ${s.revealBook + 1} of ${s.books.length}</p>
-      </div>`;
+      ${isVip ? '<div class="row-center"><button class="btn btn-ghost" id="ts-prev">Back</button><button class="btn btn-primary btn-big" id="ts-next">Next</button></div>' : ''}</div>`;
     el.querySelector('#ts-next')?.addEventListener('click', () => sendAction('game:reveal-next'));
     el.querySelector('#ts-prev')?.addEventListener('click', () => sendAction('game:reveal-prev'));
     return;

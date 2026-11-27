@@ -5,7 +5,7 @@ import { shuffle } from '../../js/ui.js';
 import { WORDS } from './words.js';
 
 const GRACE_MS = 3000;
-export const TIMES = { draw: 45_000, guess: 20_000 };   // shortened after playtesting (was 75s / 35s)
+export const TIMES = { draw: 55_000, guess: 25_000 };   // playtested: 75/35 felt slow, 45/20 a bit rushed
 
 export default class TelestrationsEngine extends BaseGameEngine {
   onInit() {

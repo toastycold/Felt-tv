@@ -175,7 +175,7 @@ export default class WavelengthEngine extends BaseGameEngine {
         this.reveal();
         break;
       case 'game:next':
-        if (s.phase !== 'reveal' || !(host || me === s.next)) return;
+        if (s.phase !== 'reveal' || !(host || meta.isVip)) return;   // the TV or the VIP's phone
         this.nextClue();
         break;
       case 'game:play-again':

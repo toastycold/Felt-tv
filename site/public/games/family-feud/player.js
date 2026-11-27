@@ -65,7 +65,7 @@ export function renderPlayer(el, { state: s, me, players, sendAction }) {
     else headline = `${teamName(s, other)} is trying to steal…`;
   } else if (s.phase === 'reveal') {
     headline = esc(s.message);
-
+    if (isVip) action = '<div class="ff-actions"><button class="btn btn-primary btn-big" id="ff-next">Next round</button></div>';
   } else if (s.phase === 'over') {
     headline = s.winner === 'tie' ? "It's a tie!" : s.winner === team ? 'Your family wins! 🦃' : `${teamName(s, s.winner)} won`;
     if (isVip) action = `<div class="ff-actions">${s.winner !== 'tie' ? '<button class="btn btn-primary btn-big" id="ff-fm">Play Fast Money!</button>' : ''}
@@ -141,7 +141,7 @@ function renderFastMoney(el, s, me, players, sendAction, team, isVip) {
   } else if (step === 'ready1' || step === 'ready2') {
     const up = step === 'ready1' ? fm.p1 : fm.p2;
     body = up === me
-      ? `<h2>You're up!</h2><p>${step === 'ready1' ? '60 seconds for 5 questions. Whatever time you save goes to your partner.' : `${Math.round(Math.max(10000, fm.left) / 1000)} seconds for 5 questions.`} Type fast! Pass if you're stuck and come back to it.</p>
+      ? `<h2>You're up!</h2><p>${step === 'ready1' ? '60 seconds for 5 questions. Whatever time you save goes to your partner.' : `${Math.round((fm.left + 5000) / 1000)} seconds for 5 questions (what was left plus 5 bonus seconds).`} Type fast! Pass if you're stuck and come back to it.</p>
          ${step === 'ready2' ? `<p>Don't repeat ${fm.p1 === fm.p2 ? 'your first' : `${name(fm.p1)}'s`} answers.</p>` : ''}
          <div class="ff-actions"><button class="btn btn-primary btn-big" id="fm-start">Start my clock</button></div>`
       : `<h2>${name(up)} is about to play Fast Money</h2>`;

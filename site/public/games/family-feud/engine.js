@@ -9,7 +9,7 @@ const other = (t) => (t === 'red' ? 'blue' : 'red');
 const MULTS = [1, 1, 2, 3];
 const FM_GOAL = 200;
 const FM_TOTAL = 60000;           // one 60-second clock shared by both players
-const FM_MIN_P2 = 10000;          // player 2 always gets at least this much
+const FM_BONUS_P2 = 5000;         // player 2 gets whatever player 1 left, plus 5 seconds
 const FM_REVEAL_MS = 1300;        // pause between each point total being revealed
 
 // ---------- surveys this TV has already shown ----------
@@ -275,7 +275,7 @@ export default class FamilyFeudEngine extends BaseGameEngine {
     const t = this.fmTurn();
     s.fm.step = `play${t + 1}`;
     s.fm.order = [0, 1, 2, 3, 4];
-    const time = t ? Math.max(FM_MIN_P2, s.fm.left) : FM_TOTAL;
+    const time = t ? s.fm.left + FM_BONUS_P2 : FM_TOTAL;
     s.fm.endsAt = Date.now() + time;
     s.fm.dup = null;
     s.current = t ? s.fm.p2 : s.fm.p1;

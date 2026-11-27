@@ -63,7 +63,7 @@ export function renderPlayer(el, ctx) {
       break;
     }
     case 'morning':
-      action = '<p class="center">Look at the TV.</p>';
+      action = '<p class="center">Look at the TV.</p>' + (isVip ? '<div class="row-center"><button class="btn btn-primary" id="mf-day">Start the day</button></div>' : '');
       break;
     case 'day': {
       const locked = s.votes[me];
@@ -81,7 +81,7 @@ export function renderPlayer(el, ctx) {
       break;
     }
     case 'verdict':
-      action = '<p class="center">Look at the TV.</p>';
+      action = '<p class="center">Look at the TV.</p>' + (isVip ? '<div class="row-center"><button class="btn btn-primary" id="mf-night">Night falls…</button></div>' : '');
       break;
     case 'over':
       action = `<div class="display-l center">${s.winner === 'town' ? 'The town wins!' : 'The Mafia wins!'}</div>`
