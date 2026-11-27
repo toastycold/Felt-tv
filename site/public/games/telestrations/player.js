@@ -7,17 +7,21 @@ let lastKey = '';
 
 // Save a draft every couple of seconds, and hand in whatever you have just before the timer ends,
 // so a drawing or guess is never lost.
-let saveTimer = 0, sendTimer = 0, lastDraft = '';
-function stopSaving() { clearInterval(saveTimer); clearTimeout(sendTimer); saveTimer = sendTimer = 0; lastDraft = ''; }
+let saveTimer = 0, sendTimer = 0, lastDraft = '', handIn = null, hurriedStep = '', saveNow = null;
+function stopSaving() { clearInterval(saveTimer); clearTimeout(sendTimer); saveTimer = sendTimer = 0; lastDraft = ''; handIn = null; saveNow = null; }
 function keepSaving(s, current, submit, sendAction) {
   stopSaving();
-  saveTimer = setInterval(() => {
+  saveNow = () => {
     const d = JSON.stringify(current());
     if (d !== lastDraft) { lastDraft = d; sendAction('game:draft', current()); }
-  }, 2500);
-  const left = (s.deadline || 0) - Date.now() - 1500;
-  if (left > 0) sendTimer = setTimeout(() => { stopSaving(); submit(); }, left);
+  };
+  saveTimer = setInterval(saveNow, 2000);
+  handIn = () => { stopSaving(); submit(); };
+  const left = (s.deadline || 0) - Date.now() - 1000;
+  sendTimer = setTimeout(() => handIn?.(), Math.max(0, left));
 }
+// Phone going to sleep or switching apps: save right away.
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow?.(); });
 
 export function renderPlayer(el, ctx) {
   const { state: s, priv = {}, me, players, sendAction, media } = ctx;
@@ -26,6 +30,9 @@ export function renderPlayer(el, ctx) {
   const isVip = players[0]?.id === me;
   const seated = s.seats.includes(me);
   const done = !!s.done[me];
+
+  // The TV said "stop waiting": hand in whatever is on this phone right now.
+  if (s.phase === 'play' && s.hurry && !done && handIn && hurriedStep !== `${priv.game}-${s.step}`) { hurriedStep = `${priv.game}-${s.step}`; handIn(); }
 
   // Only rebuild the screen when something that matters to this phone changed,
   // so other players finishing doesn't interrupt your drawing.
@@ -78,6 +85,7 @@ export function renderPlayer(el, ctx) {
       el.querySelector('#ts-clear').onclick = () => { pad.strokes = []; p.repaint(); };
       el.querySelector('#ts-send').onclick = () => { stopSaving(); sendAction('game:draw', { strokes: pad.strokes }); };
       keepSaving(s, () => ({ strokes: pad.strokes }), () => sendAction('game:draw', { strokes: pad.strokes }), sendAction);
+      pad.onStroke = () => saveNow?.();
       return;
     }
     // guess
@@ -95,7 +103,9 @@ export function renderPlayer(el, ctx) {
     });
     el.querySelector('#ts-guess').onsubmit = (e) => { e.preventDefault(); stopSaving(); sendAction('game:guess', { text: el.querySelector('#ts-guess-text').value }); };
     const guessText = () => el.querySelector('#ts-guess-text')?.value || '';
-    keepSaving(s, () => ({ text: guessText() }), () => { if (guessText().trim()) sendAction('game:guess', { text: guessText() }); }, sendAction);
+    keepSaving(s, () => ({ text: guessText() }), () => sendAction('game:guess', { text: guessText() }), sendAction);
+    let typing = 0;
+    el.querySelector('#ts-guess-text').addEventListener('input', () => { clearTimeout(typing); typing = setTimeout(() => saveNow?.(), 500); });
     return;
   }
 

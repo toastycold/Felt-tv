@@ -4,6 +4,7 @@ import { BaseGameEngine } from '../../js/engine-base.js';
 import { shuffle } from '../../js/ui.js';
 import { WORDS } from './words.js';
 
+const GRACE_MS = 3000;
 export const TIMES = { draw: 45_000, guess: 20_000 };   // shortened after playtesting (was 75s / 35s)
 
 export default class TelestrationsEngine extends BaseGameEngine {
@@ -64,7 +65,9 @@ export default class TelestrationsEngine extends BaseGameEngine {
     s.deadline = Date.now() + ms;
     clearTimeout(this.timer);
     const step = s.step;
-    this.timer = setTimeout(() => { if (this.state.phase === 'play' && this.state.step === step) { this.advance(); this.sync(); } }, ms);
+    s.hurry = false;
+    // A few seconds of grace after the clock hits zero, so phones' last-second hand-ins arrive first.
+    this.timer = setTimeout(() => { if (this.state.phase === 'play' && this.state.step === step) { this.advance(); this.sync(); } }, ms + GRACE_MS);
   }
 
   /** Fill in blanks for anyone who didn't finish, then move to the next step (or the reveal). */
@@ -160,7 +163,14 @@ export default class TelestrationsEngine extends BaseGameEngine {
         break;
       case 'game:skip-wait':
         if (!host) return;
-        if (s.phase === 'play') this.advance();
+        if (s.phase === 'play') {
+          // Ask every phone to hand in what it has right now, then move on a moment later.
+          if (s.hurry) { this.advance(); break; }   // pressed twice: don't wait
+          s.hurry = true;
+          clearTimeout(this.timer);
+          const step = s.step;
+          this.timer = setTimeout(() => { if (this.state.phase === 'play' && this.state.step === step) { this.advance(); this.sync(); } }, 2500);
+        }
         else if (s.phase === 'choose') {
           // Anyone who hasn't picked gets their first option.
           s.seats.forEach((id, i) => { if (!this.secret.books[i].word) this.secret.books[i].word = this.secret.options[id][0]; });

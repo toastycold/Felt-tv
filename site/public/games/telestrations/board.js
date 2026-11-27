@@ -29,7 +29,7 @@ export function renderBoard(el, { state: s, players, sendAction, media }) {
       <div class="display-xl center">${s.task === 'draw' ? 'Draw!' : 'Guess the drawing!'}</div>
       <p class="lede center">Page ${s.step + 1} of ${s.steps}. ${s.task === 'draw' ? 'Draw what your phone shows you.' : 'Type what you think it is.'}</p>
       <div class="ts-chips">${s.seats.map((id) => `<span class="${s.done[id] ? 'in' : ''}">${esc(nameOf(id, players))}</span>`).join('')}</div>
-      <div class="row-center"><button class="btn btn-ghost" id="ts-skip">Stop waiting</button></div>`;
+      <div class="row-center">${s.hurry ? '<span class="muted">Collecting everyone\'s pages…</span>' : '<button class="btn btn-ghost" id="ts-skip">Stop waiting</button>'}</div>`;
   } else if (s.phase === 'reveal') {
     const book = s.books[s.revealBook];
     body = `<div class="center muted">Sketchbook ${s.revealBook + 1} of ${s.books.length}: ${esc(nameOf(book.owner, players))}'s</div>

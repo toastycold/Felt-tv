@@ -94,6 +94,6 @@ export function mountPad(container, store) {
     p.push(x, y);
     paintStrokes(canvas, store.strokes);
   };
-  canvas.onpointerup = canvas.onpointercancel = () => { current = null; };
+  canvas.onpointerup = canvas.onpointercancel = () => { if (current) store.onStroke?.(); current = null; };
   return { repaint: () => paintStrokes(canvas, store.strokes), resize };
 }
