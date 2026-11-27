@@ -3,6 +3,7 @@ import {
   db, ref, get, set, update, remove, onValue, onChildAdded, onDisconnect, serverTimestamp,
   ensureUser, warnIfNotConfigured,
 } from './firebase.js';
+import { buildRoster, seatToReclaim } from './roster.js';
 import { loadCatalog, loadGame, escapeHtml } from './catalog.js';
 import { groupApproved } from './suggestions.js';
 import { spriteHtml, castHtml } from './people.js';
@@ -125,7 +126,14 @@ function runRoom({ code, game, user, resume }) {
   let liveCb = null, liveOn = false;
   const onLive = (cb) => {
     liveCb = cb;
-    if (!liveOn) { liveOn = true; onValue(ref(db, `${roomPath}/live`), (snap) => liveCb?.(snap.val() || {})); }
+    if (!liveOn) {
+      liveOn = true;
+      onValue(ref(db, `${roomPath}/live`), (snap) => {
+        const all = {};
+        for (const [uid, v] of Object.entries(snap.val() || {})) all[aliases[uid] || uid] = v;
+        liveCb?.(all);
+      });
+    }
   };
   const mediaCache = {};
   const media = (id) => {
@@ -167,15 +175,20 @@ function runRoom({ code, game, user, resume }) {
   set(hostConnRef, true);
   onDisconnect(hostConnRef).set(false);
 
-  // Players joining / leaving
+  // Players joining / leaving (and coming back: see roster.js)
   let firstSnapshot = true;
-  onValue(ref(db, `${roomPath}/players`), (snap) => {
-    const val = snap.val() || {};
-    const next = Object.entries(val)
-      .map(([id, p]) => ({ id, name: p.name, person: p.person || '', connected: p.connected !== false, joinedAt: p.joinedAt || 0 }))
-      .sort((a, b) => a.joinedAt - b.joinedAt);
-    next.forEach((p, i) => (p.isVip = i === 0));
-
+  let rawPlayers = {}, aliases = {};
+  const applyRoster = () => {
+    // Someone new with the same name as a player who dropped out takes their seat back.
+    for (const uid of Object.keys(rawPlayers)) {
+      if (players.some((p) => p.id === uid) || aliases[uid]) continue;
+      const seat = seatToReclaim(rawPlayers, aliases, uid, players);
+      if (!seat) continue;
+      if (status === 'lobby') { remove(ref(db, `${roomPath}/players/${seat.id}`)); continue; }   // before the game: just drop the old entry
+      aliases = { ...aliases, [uid]: seat.id };
+      set(ref(db, `${roomPath}/aliases/${uid}`), seat.id);
+    }
+    const next = buildRoster(rawPlayers, aliases);
     const prevIds = new Set(players.map((p) => p.id));
     const nextIds = new Set(next.map((p) => p.id));
     const joined = next.filter((p) => !prevIds.has(p.id));
@@ -188,16 +201,19 @@ function runRoom({ code, game, user, resume }) {
     }
     firstSnapshot = false;
     render();
-  });
+  };
+  onValue(ref(db, `${roomPath}/aliases`), (snap) => { aliases = snap.val() || {}; applyRoster(); });
+  onValue(ref(db, `${roomPath}/players`), (snap) => { rawPlayers = snap.val() || {}; applyRoster(); });
 
   // Actions from phones: process, then delete from the queue.
   onChildAdded(ref(db, `${roomPath}/actions`), (snap) => {
     const a = snap.val();
     remove(snap.ref);
-    const player = players.find((p) => p.id === a.uid);
+    const pid = aliases[a.uid] || a.uid;   // a rejoined phone acts as its old seat
+    const player = players.find((p) => p.id === pid);
     if (!player || typeof a.type !== 'string') return;
     safely(() => engine.processAction(a.type, a.payload || {}, {
-      playerId: a.uid, isBoard: false, isVip: !!player.isVip, timestamp: a.ts || Date.now(),
+      playerId: pid, isBoard: false, isVip: !!player.isVip, timestamp: a.ts || Date.now(),
     }));
   });
 

@@ -150,6 +150,10 @@ export default class TelestrationsEngine extends BaseGameEngine {
         this.maybeAdvance();
         break;
       }
+      case 'game:unsend':   // "Back": keep working on your page while the clock is still going
+        if (s.phase !== 'play' || seat === -1 || !s.done[me] || s.hurry || Date.now() > s.deadline) return;
+        delete s.done[me];
+        break;
       case 'game:draft': {   // work in progress, saved every few seconds in case time runs out
         if (s.phase !== 'play' || seat === -1 || s.done[me]) return;
         (this.secret.drafts ||= {})[me] = s.task === 'draw'

@@ -3,6 +3,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebas
 import {
   initializeAuth,
   browserSessionPersistence,
+  browserLocalPersistence,
   inMemoryPersistence,
   signInAnonymously,
   onAuthStateChanged,
@@ -42,7 +43,10 @@ const app = initializeApp(firebaseConfig);
 // and a refresh keeps the same identity (so players can reconnect).
 // Test bots (play.html?bot=1) run inside the TV page, so each keeps its sign-in in memory to be its own player.
 const isBot = /[?&](bot|solo)=/.test(location.search); // bots and the phone-test controller
-export const auth = initializeAuth(app, { persistence: isBot ? inMemoryPersistence : browserSessionPersistence });
+// Phones remember who you are even after the app closes, so you can jump back into the same game.
+// (The TV and admin page keep using one sign-in per tab.)
+const isPlayer = /\/play\.html$/.test(location.pathname) || /\/suggest\.html$/.test(location.pathname);
+export const auth = initializeAuth(app, { persistence: isBot ? inMemoryPersistence : isPlayer ? browserLocalPersistence : browserSessionPersistence });
 export const db = getDatabase(app);
 
 export { ref, get, set, update, remove, push, onValue, onChildAdded, onDisconnect, serverTimestamp };

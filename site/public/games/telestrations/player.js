@@ -4,6 +4,7 @@ import { COLORS, drawStyles, mountPad, paintAll } from './draw.js';
 
 const pad = { key: '', strokes: [], color: COLORS[0], width: 10 };
 let lastKey = '';
+let lastGuess = { key: '', text: '' };
 
 // Save a draft every couple of seconds, and hand in whatever you have just before the timer ends,
 // so a drawing or guess is never lost.
@@ -61,7 +62,10 @@ export function renderPlayer(el, ctx) {
   if (s.phase === 'play') {
     const head = `<div class="game-head"><span>Page ${s.step + 1} of ${s.steps}</span>${countdown(s.deadline)}</div>`;
     if (done || priv.step !== s.step) {
-      el.innerHTML = `${head}<div class="center"><div class="display-l">Sent!</div><p class="muted">Waiting for the others…</p></div>`;
+      const canBack = done && priv.step === s.step && !s.hurry && s.deadline - Date.now() > 3000;
+      el.innerHTML = `${head}<div class="center"><div class="display-l">Sent!</div><p class="muted">Waiting for the others…</p>
+        ${canBack ? `<button class="btn btn-ghost" id="ts-back">Back: change my ${s.task === 'draw' ? 'drawing' : 'guess'}</button>` : ''}</div>`;
+      el.querySelector('#ts-back')?.addEventListener('click', () => { lastKey = ''; sendAction('game:unsend'); });
       return;
     }
     if (s.task === 'draw') {
@@ -101,7 +105,9 @@ export function renderPlayer(el, ctx) {
       if (!strokes) lastKey = ''; // re-render once the drawing arrives
       return strokes;
     });
-    el.querySelector('#ts-guess').onsubmit = (e) => { e.preventDefault(); stopSaving(); sendAction('game:guess', { text: el.querySelector('#ts-guess-text').value }); };
+    const gi = el.querySelector('#ts-guess-text');
+    if (lastGuess.key === `${priv.game}-${s.step}` && !gi.value) gi.value = lastGuess.text;
+    el.querySelector('#ts-guess').onsubmit = (e) => { e.preventDefault(); stopSaving(); lastGuess = { key: `${priv.game}-${s.step}`, text: gi.value }; sendAction('game:guess', { text: gi.value }); };
     const guessText = () => el.querySelector('#ts-guess-text')?.value || '';
     keepSaving(s, () => ({ text: guessText() }), () => sendAction('game:guess', { text: guessText() }), sendAction);
     let typing = 0;

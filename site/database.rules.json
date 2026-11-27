@@ -26,7 +26,7 @@
           ".read": "auth != null && root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid",
           ".write": "auth != null && root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid",
           "$uid": {
-            ".read": "auth != null && auth.uid === $uid"
+            ".read": "auth != null && (auth.uid === $uid || root.child('rooms/' + $code + '/aliases/' + auth.uid).val() === $uid)"
           }
         },
         "media": {
@@ -57,6 +57,10 @@
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && root.child('rooms/' + $code + '/players/' + auth.uid).exists()"
           }
+        },
+        "aliases": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid"
         }
       }
     },

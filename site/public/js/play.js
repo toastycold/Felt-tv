@@ -3,6 +3,7 @@ import {
   db, ref, get, set, update, push, onValue, onDisconnect, serverTimestamp,
   ensureUser, warnIfNotConfigured,
 } from './firebase.js';
+import { buildRoster } from './roster.js';
 import { loadGame, escapeHtml } from './catalog.js';
 import { wireTileInput, tileInputHtml } from './ui.js';
 import { PEOPLE, spriteHtml } from './people.js';
@@ -28,13 +29,15 @@ async function main() {
   }
 
   // Rejoin automatically after a refresh in the same tab.
-  const saved = SOLO ? null : JSON.parse(sessionStorage.getItem('tt-room') || 'null');
+  let saved = null;
+  try { saved = SOLO ? null : JSON.parse(localStorage.getItem('tt-room') || 'null'); } catch { /* none */ }
+  if (saved && Date.now() - (saved.at || 0) > 12 * 3600 * 1000) saved = null;   // only rejoin games from today
   const urlCode = (params.get('code') || '').toUpperCase();
   if (saved && (!urlCode || urlCode === saved.code)) {
     try {
       return await join(user, saved.code, saved.name);
     } catch {
-      sessionStorage.removeItem('tt-room');
+      localStorage.removeItem('tt-room');
     }
   }
   showJoinForm();
@@ -107,7 +110,7 @@ async function join(user, code, name) {
   if (existing) await update(meRef, { name, person: person || '', connected: true });
   else await set(meRef, { name, person: person || '', connected: true, joinedAt: serverTimestamp() });
   onDisconnect(ref(db, `${roomPath}/players/${user.uid}/connected`)).set(false);
-  if (!BOT && !SOLO) sessionStorage.setItem('tt-room', JSON.stringify({ code, name }));
+  if (!BOT && !SOLO) localStorage.setItem('tt-room', JSON.stringify({ code, name, at: Date.now() }));
 
   let roomMeta = meta;
   let players = [];
@@ -137,25 +140,31 @@ async function join(user, code, name) {
     roomMeta = snap.val() || { status: 'closed' };
     render();
   });
-  onValue(ref(db, `${roomPath}/players`), (snap) => {
-    const val = snap.val() || {};
-    players = Object.entries(val)
-      .map(([id, p]) => ({ id, name: p.name, connected: p.connected !== false, joinedAt: p.joinedAt || 0 }))
-      .sort((a, b) => a.joinedAt - b.joinedAt);
-    players.forEach((p, i) => (p.isVip = i === 0));
-    removed = !val[user.uid];
+  // If the TV linked this phone to an old seat (rejoining), play as that seat.
+  let rawPlayers = {}, aliases = {}, me = user.uid, privOff = null;
+  const watchPrivate = () => {
+    privOff?.();
+    privOff = onValue(ref(db, `${roomPath}/private/${me}`), (snap) => {
+      const v = snap.val();
+      priv = v ? JSON.parse(v.json) : {};
+      render();
+    });
+  };
+  const applyRoster = () => {
+    players = buildRoster(rawPlayers, aliases);
+    removed = !rawPlayers[user.uid];
+    const seat = aliases[user.uid] || user.uid;
+    if (seat !== me) { me = seat; watchPrivate(); }
     render();
-  });
+  };
+  onValue(ref(db, `${roomPath}/aliases`), (snap) => { aliases = snap.val() || {}; applyRoster(); });
+  onValue(ref(db, `${roomPath}/players`), (snap) => { rawPlayers = snap.val() || {}; applyRoster(); });
   onValue(ref(db, `${roomPath}/state`), (snap) => {
     const v = snap.val();
     state = v ? JSON.parse(v.json) : {};
     render();
   });
-  onValue(ref(db, `${roomPath}/private/${user.uid}`), (snap) => {
-    const v = snap.val();
-    priv = v ? JSON.parse(v.json) : {};
-    render();
-  });
+  watchPrivate();
 
   function render() {
     const el = $('#controller');
@@ -163,7 +172,7 @@ async function join(user, code, name) {
     if (!el) return;
 
     if (roomMeta.status === 'closed' || removed) {
-      sessionStorage.removeItem('tt-room');
+      localStorage.removeItem('tt-room');
       el.innerHTML = `<div class="sheet center"><h2>${removed ? 'The host removed you from this game.' : 'The host ended the game.'}</h2>
         <a class="btn btn-primary btn-big" href="play.html">Join another game</a></div>`;
       notice.hidden = true;
@@ -174,14 +183,14 @@ async function join(user, code, name) {
     notice.textContent = 'The host screen disconnected. Waiting for it to come back…';
 
     if (roomMeta.status === 'lobby') {
-      const me = players.find((p) => p.id === user.uid);
+      const mine = players.find((p) => p.id === me);
       el.innerHTML = `<div class="waiting-room">
         <h2>You're in!</h2>
-        <p class="muted">${me?.isVip ? "You're the VIP, so you can start rounds from your phone. " : ''}Waiting for the host to start.</p>
+        <p class="muted">${mine?.isVip ? "You're the VIP, so you can start rounds from your phone. " : ''}Waiting for the host to start.</p>
         <ul class="player-list">${players.map((p) => `<li>${escapeHtml(p.name)}${p.isVip ? '<span class="vip">VIP</span>' : ''}</li>`).join('')}</ul>
       </div>`;
       return;
     }
-    game.renderPlayer(el, { state, priv, me: user.uid, players, sendAction, media, setLive });
+    game.renderPlayer(el, { state, priv, me, players, sendAction, media, setLive });
   }
 }
