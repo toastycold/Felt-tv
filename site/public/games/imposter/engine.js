@@ -39,7 +39,7 @@ export default class ImposterEngine extends BaseGameEngine {
     // Pick the Imposter at random, but not the same person twice in a row.
     const pool = ids.length > 2 ? ids.filter((id) => id !== this.secret.lastImposter) : ids;
     const imposter = pool[Math.floor(Math.random() * pool.length)];
-    Object.assign(this.secret, { word: card.word, imposter, lastImposter: imposter });
+    Object.assign(this.secret, { word: card.word, imposter, lastImposter: imposter, guessed: {}, notes: {} });
     s.round += 1;
     // The first clue never comes from the Imposter (they'd have nothing to go on).
     let order = shuffle([...ids]);
@@ -55,7 +55,7 @@ export default class ImposterEngine extends BaseGameEngine {
     for (const p of this.players) {
       if (!live || !s.order.includes(p.id)) this.setPrivate(p.id, {});
       else if (p.id === this.secret.imposter) this.setPrivate(p.id, { imposter: true, category: s.category });
-      else this.setPrivate(p.id, { word: this.secret.word, category: s.category });
+      else this.setPrivate(p.id, { word: this.secret.word, category: s.category, guessed: this.secret.guessed?.[p.id] || '', note: this.secret.notes?.[p.id] || '' });
     }
     super.sync();
   }
@@ -86,7 +86,7 @@ export default class ImposterEngine extends BaseGameEngine {
     const imp = this.secret.imposter;
     s.imposter = imp; s.word = this.secret.word; s.result = result;
     // Points: the Imposter gets 2 for escaping or guessing the word; everyone else gets 1 for catching them.
-    if (result === 'caught') for (const id of s.order) { if (id !== imp) s.scores[id] = (s.scores[id] || 0) + 1; }
+    if (result === 'caught' || result === 'blurted') for (const id of s.order) { if (id !== imp) s.scores[id] = (s.scores[id] || 0) + 1; }
     else s.scores[imp] = (s.scores[imp] || 0) + 2;
     s.phase = 'reveal';
   }
@@ -101,8 +101,9 @@ export default class ImposterEngine extends BaseGameEngine {
         const clue = clean(p.text).split(/\s+/)[0];
         if (!clue) return;
         const parts = [this.secret.word, ...this.secret.word.split(/\s+/).filter((w) => w.length >= 3)].map(norm);
-        if (me !== this.secret.imposter && parts.includes(norm(clue))) { this.setPrivate(me, { ...this.private[me], note: "That's the word itself! Try a different clue." }); break; }
+        if (me !== this.secret.imposter && parts.includes(norm(clue))) { (this.secret.notes ||= {})[me] = "That's the word itself! Try a different clue."; break; }
         s.clues[me] = clue;
+        if (this.secret.notes) delete this.secret.notes[me];
         s.turn += 1;
         if (s.turn >= s.order.length) s.phase = 'vote';
         break;
@@ -133,13 +134,17 @@ export default class ImposterEngine extends BaseGameEngine {
         this.checkVotes();
         break;
       case 'game:guess': {
-        if (s.phase !== 'guess' || me !== this.secret.imposter) return;
+        // Every phone has the guess box (so nobody stands out), but only the Imposter's guess counts.
+        // They can try any time: right ends the round with an Imposter win, wrong ends it with a town win.
+        if (!['clues', 'vote', 'guess'].includes(s.phase) || !s.order.includes(me)) return;
+        if (me !== this.secret.imposter) { (this.secret.guessed ||= {})[me] = clean(p.text); break; }
         const g = clean(p.text);
         if (!g) return;
         s.guess = g;
         const w = norm(this.secret.word), x = norm(g);
         const close = x === w || (x.length >= 4 && (w.includes(x) || x.includes(w))) || x === w + 's' || w === x + 's';
-        this.finishRound(close ? 'guessed' : 'caught');
+        if (s.phase !== 'guess') s.accused = '';   // guessed before anyone voted
+        this.finishRound(close ? 'guessed' : s.phase === 'guess' ? 'caught' : 'blurted');
         break;
       }
       case 'game:next':

@@ -41,8 +41,9 @@ export function renderBoard(el, { state: s, players, sendAction }) {
     case 'reveal': {
       const res = {
         caught: [`${n(s.imposter)} was the Imposter, and guessed "${esc(s.guess)}". Wrong! Everyone else scores.`, 'win'],
-        guessed: [`${n(s.imposter)} was caught, but guessed the word! The Imposter wins.`, 'lose'],
+        guessed: [s.accused ? `${n(s.imposter)} was caught, but guessed the word! The Imposter wins.` : `${n(s.imposter)}, the Imposter, figured out the word! The Imposter wins.`, 'lose'],
         wrong: [`${n(s.accused)} wasn't the Imposter! ${n(s.imposter)} got away with it.`, 'lose'],
+        blurted: [`${n(s.imposter)}, the Imposter, guessed "${esc(s.guess)}" early. Wrong! Everyone else scores.`, 'win'],
         tie: [`The vote was split, so ${n(s.imposter)}, the Imposter, slipped away.`, 'lose'],
       }[s.result] || ['', ''];
       body = `<div class="im-big">The word was <b>${esc(s.word)}</b></div><div class="im-result ${res[1]}">${res[0]}</div>${cards()}
