@@ -29,11 +29,12 @@ export function imposterStyles() {
     .im-secret .w { font: 900 2.2rem/1.1 var(--display); }
     .im-secret .c { font: 700 .95rem var(--body); opacity: .8; }
     
-    .im-flip { width: 100%; border: 0; cursor: pointer; font: inherit; }
+    .im-flip { width: 100%; }
     .im-flip .front { display: none; } .im-flip.up .back { display: none; } .im-flip.up .front { display: block; }
     .im-flip .back { font: 800 1.15rem var(--display); opacity: .9; }
     .im-flip.up { background: linear-gradient(135deg, #2b3d6b, #1a2445); }
-    .im-final { margin-top: 1.2rem; padding-top: .8rem; border-top: 1px dashed rgba(255,255,255,.25); text-align: left; }
+    .im-final { margin-top: .8rem; padding-top: .6rem; border-top: 1px dashed rgba(255,255,255,.3); text-align: left; }
+    .im-flip { cursor: pointer; }
     .im-final label { font-size: .85rem; opacity: .8; }
     .im-final-row { display: flex; gap: .4rem; margin-top: .3rem; }
     .im-final-row input { flex: 1; min-width: 0; padding: .55rem .7rem; border-radius: 10px; border: 0; font: 700 1rem var(--body); }

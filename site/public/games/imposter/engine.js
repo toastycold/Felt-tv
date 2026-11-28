@@ -137,7 +137,7 @@ export default class ImposterEngine extends BaseGameEngine {
         // Every phone has the guess box (so nobody stands out), but only the Imposter's guess counts.
         // They can try any time: right ends the round with an Imposter win, wrong ends it with a town win.
         if (!['clues', 'vote', 'guess'].includes(s.phase) || !s.order.includes(me)) return;
-        if (me !== this.secret.imposter) { (this.secret.guessed ||= {})[me] = clean(p.text); break; }
+        if (me !== this.secret.imposter) return;
         const g = clean(p.text);
         if (!g) return;
         s.guess = g;
